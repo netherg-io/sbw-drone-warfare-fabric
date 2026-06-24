@@ -1,0 +1,67 @@
+{
+  "cubed_fpv_drone_engine": {
+    "subtitle": "subtitles.sbwdroneconfig.cubed_fpv_drone_engine",
+    "sounds": [
+      {
+        "name": "sbwdroneconfig:entity/cubed_fpv_drone_engine",
+        "stream": true
+      }
+    ]
+  },
+  "lucas_drone_engine": {
+    "subtitle": "subtitles.sbwdroneconfig.lucas_drone_engine",
+    "sounds": [
+      {
+        "name": "sbwdroneconfig:lucas_drone_engine",
+        "stream": true
+      }
+    ]
+  },
+  "lucas_drone_engine_far": {
+    "subtitle": "subtitles.sbwdroneconfig.lucas_drone_engine",
+    "sounds": [
+      {
+        "name": "sbwdroneconfig:lucas_drone_engine",
+        "stream": true,
+        "volume": 0.9,
+        "pitch": 0.92
+      }
+    ]
+  },
+  "drone_distant_explosion": {
+    "subtitle": "subtitles.sbwdroneconfig.drone_distant_explosion",
+    "sounds": [
+      {
+        "name": "sbwdroneconfig:drone_distant_explosion",
+        "stream": false
+      }
+    ]
+  },
+  "drone_5000_block_explosion": {
+    "subtitle": "subtitles.sbwdroneconfig.drone_5000_block_explosion",
+    "sounds": [
+      {
+        "name": "sbwdroneconfig:drone_5000_block_explosion",
+        "stream": false
+      }
+    ]
+  },
+  "drone_detection_siren": {
+    "subtitle": "block.sbwdroneconfig.drone_detection_siren",
+    "sounds": [
+      {
+        "name": "sbwdroneconfig:block/drone_detection_siren",
+        "stream": true
+      }
+    ]
+  },
+  "drone_radar_beep": {
+    "subtitle": "subtitles.sbwdroneconfig.drone_radar_beep",
+    "sounds": [
+      {
+        "name": "minecraft:block.note_block.hat",
+        "type": "event"
+      }
+    ]
+  }
+}

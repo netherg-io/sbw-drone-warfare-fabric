@@ -1,0 +1,16 @@
+{
+  "type": "superbwarfare:vehicle_assembling",
+  "category": "misc",
+  "inputs": [
+    "minecraft:furnace",
+    "minecraft:iron_ingot",
+    "minecraft:iron_ingot",
+    "minecraft:iron_ingot",
+    "minecraft:copper_ingot",
+    "minecraft:redstone",
+    "minecraft:blaze_powder"
+  ],
+  "result": {
+    "item": "sbwdroneconfig:fuel_mixer"
+  }
+}

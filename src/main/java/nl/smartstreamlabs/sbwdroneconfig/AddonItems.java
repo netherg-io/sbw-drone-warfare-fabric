@@ -1,0 +1,129 @@
+package nl.smartstreamlabs.sbwdroneconfig;
+
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Rarity;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
+
+public final class AddonItems {
+    public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, SbwDroneRangeConfig.MOD_ID);
+    public static final RegistryObject<Item> DRONE_DETECTION_SIREN = ITEMS.register(
+            "drone_detection_siren",
+            () -> new TooltipBlockItem(
+                    AddonBlocks.DRONE_DETECTION_SIREN.get(),
+                    new Item.Properties(),
+                    "tooltip.sbwdroneconfig.drone_detection_siren.1",
+                    "tooltip.sbwdroneconfig.drone_detection_siren.2"
+            )
+    );
+    public static final RegistryObject<Item> ANTI_DRONE_NET = ITEMS.register(
+            "anti_drone_net",
+            () -> new TooltipBlockItem(
+                    AddonBlocks.ANTI_DRONE_NET.get(),
+                    new Item.Properties(),
+                    "tooltip.sbwdroneconfig.anti_drone_net.1",
+                    "tooltip.sbwdroneconfig.anti_drone_net.2"
+            )
+    );
+    public static final RegistryObject<Item> ANTI_DRONE_NET_CARPET = ITEMS.register(
+            "anti_drone_net_carpet",
+            () -> new TooltipBlockItem(
+                    AddonBlocks.ANTI_DRONE_NET_CARPET.get(),
+                    new Item.Properties(),
+                    "tooltip.sbwdroneconfig.anti_drone_net_carpet.1",
+                    "tooltip.sbwdroneconfig.anti_drone_net_carpet.2"
+            )
+    );
+    public static final RegistryObject<Item> ANTI_DRONE_NET_PANEL = ITEMS.register(
+            "anti_drone_net_panel",
+            () -> new TooltipBlockItem(
+                    AddonBlocks.ANTI_DRONE_NET_PANEL.get(),
+                    new Item.Properties(),
+                    "tooltip.sbwdroneconfig.anti_drone_net_panel.1",
+                    "tooltip.sbwdroneconfig.anti_drone_net_panel.2"
+            )
+    );
+    public static final RegistryObject<Item> EXTRACTION_CRATE = ITEMS.register(
+            "extraction_crate",
+            () -> new TooltipBlockItem(
+                    AddonBlocks.EXTRACTION_CRATE.get(),
+                    new Item.Properties(),
+                    "tooltip.sbwdroneconfig.extraction_crate.1",
+                    "tooltip.sbwdroneconfig.extraction_crate.2"
+            )
+    );
+    public static final RegistryObject<Item> JAMMER = ITEMS.register(
+            "jammer",
+            () -> new TooltipBlockItem(
+                    AddonBlocks.JAMMER.get(),
+                    new Item.Properties(),
+                    "tooltip.sbwdroneconfig.jammer.1",
+                    "tooltip.sbwdroneconfig.jammer.2"
+            )
+    );
+    public static final RegistryObject<Item> FUEL_MIXER = ITEMS.register(
+            "fuel_mixer",
+            () -> new TooltipBlockItem(
+                    AddonBlocks.FUEL_MIXER.get(),
+                    new Item.Properties(),
+                    "tooltip.sbwdroneconfig.fuel_mixer.1",
+                    "tooltip.sbwdroneconfig.fuel_mixer.2",
+                    "tooltip.sbwdroneconfig.fuel_mixer.3"
+            )
+    );
+    public static final RegistryObject<Item> DRONE_JAMMER = ITEMS.register(
+            "drone_jammer",
+            () -> new DroneJammerItem(new Item.Properties().stacksTo(1))
+    );
+    public static final RegistryObject<Item> SPOTLIGHT_MODULE = ITEMS.register(
+            "spotlight_module",
+            () -> new TooltipItem(
+                    new Item.Properties().stacksTo(1),
+                    "tooltip.sbwdroneconfig.spotlight_module.1",
+                    "tooltip.sbwdroneconfig.spotlight_module.2"
+            )
+    );
+    public static final RegistryObject<Item> FIBER_OPTIC_SPOOL_UPGRADE = ITEMS.register(
+            "fiber_optic_spool_upgrade",
+            () -> new TooltipItem(
+                    new Item.Properties().durability(16),
+                    "tooltip.sbwdroneconfig.fiber_optic_spool_upgrade.1",
+                    "tooltip.sbwdroneconfig.fiber_optic_spool_upgrade.2"
+            )
+    );
+    public static final RegistryObject<Item> EMPTY_JERRYCAN = ITEMS.register(
+            "empty_jerrycan",
+            () -> new TooltipItem(
+                    new Item.Properties().stacksTo(16),
+                    "tooltip.sbwdroneconfig.empty_jerrycan.1",
+                    "tooltip.sbwdroneconfig.empty_jerrycan.2"
+            )
+    );
+    public static final RegistryObject<Item> GASOLINE_CANISTER = ITEMS.register(
+            "gasoline_canister",
+            () -> new TooltipItem(
+                    new Item.Properties().stacksTo(16),
+                    "tooltip.sbwdroneconfig.gasoline_canister.1"
+            )
+    );
+    public static final RegistryObject<Item> GASOLINE_JERRYCAN = ITEMS.register(
+            "gasoline_jerrycan",
+            () -> new TooltipItem(
+                    new Item.Properties().stacksTo(16),
+                    "tooltip.sbwdroneconfig.gasoline_jerrycan.1",
+                    "tooltip.sbwdroneconfig.gasoline_jerrycan.2"
+            )
+    );
+    public static final RegistryObject<Item> CUBED_FPV_DRONE = ITEMS.register(
+            CubedFpvDroneDefinition.ID,
+            () -> new CubedFpvDroneItem(new Item.Properties().stacksTo(64).rarity(Rarity.UNCOMMON))
+    );
+    public static final RegistryObject<Item> LUCAS_DRONE = ITEMS.register(
+            LucasDroneDefinition.ID,
+            () -> new LucasDroneItem(new Item.Properties().stacksTo(64).rarity(Rarity.UNCOMMON))
+    );
+
+    private AddonItems() {
+    }
+}

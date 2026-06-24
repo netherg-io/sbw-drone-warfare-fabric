@@ -1,0 +1,13 @@
+{
+  "type": "superbwarfare:vehicle_assembling",
+  "category": "misc",
+  "inputs": [
+    "4 minecraft:iron_ingot",
+    "3 minecraft:redstone",
+    "minecraft:copper_ingot",
+    "superbwarfare:drone"
+  ],
+  "result": {
+    "item": "sbwdroneconfig:lucas_drone"
+  }
+}

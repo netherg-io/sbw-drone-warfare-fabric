@@ -1,0 +1,26 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "nl.smartstreamlabs.sbwdroneconfig.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "sbwdroneconfig.refmap.json",
+  "plugin": "nl.smartstreamlabs.sbwdroneconfig.mixin.SbwDroneConfigMixinPlugin",
+  "mixins": [
+    "AbstractDeployerItemOwnerMixin",
+    "DroneEnergyMixin",
+    "DroneEntityCrashExplosionMixin",
+    "DroneEntityFiberCableCollisionMixin",
+    "DroneHudOverlayMixin",
+    "DroneItemOwnerMixin",
+    "MonitorItemMixin",
+    "VehicleEntityWaterDamageMixin"
+  ],
+  "client": [
+    "DroneRendererMixin",
+    "XaeroMinimapRendererMixin",
+    "XaeroWorldMapGuiMapMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

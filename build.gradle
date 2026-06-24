@@ -1,0 +1,128 @@
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
+    id 'org.spongepowered.mixin' version '0.7.+'
+    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+}
+
+version = '1.0.1'
+group = 'nl.smartstreamlabs.sbwdroneconfig'
+def sbwSourceProjectDir = [
+        file('C:/Users/Gebruiker/Desktop/SuperbWarfare-0.8.8'),
+        file('C:/Users/Gebruiker/Desktop/drone update/SuperbWarfare-0.8.8')
+].find { it.exists() } ?: file('C:/Users/Gebruiker/Desktop/SuperbWarfare-0.8.8')
+def sbwCompileOnlyInputs = [
+        new File(sbwSourceProjectDir, 'build/classes/java/main'),
+        new File(sbwSourceProjectDir, 'build/classes/kotlin/main'),
+        new File(sbwSourceProjectDir, 'build/resources/main')
+].findAll { it.exists() }
+def sbwFallbackJar = [
+        file('C:/Users/Gebruiker/curseforge/minecraft/Instances/Creative Server/mods/superbwarfare-1.20.1-0.8.8-final-6a6b54795.jar'),
+        file('C:/Users/Gebruiker/AppData/Roaming/ModrinthApp/profiles/sbw/mods/superbwarfare-1.20.1-0.8.8-final-6a6b54795.jar'),
+        file('C:/Users/Gebruiker/AppData/Roaming/ModrinthApp/profiles/1.20.1/mods/superbwarfare-1.20.1-0.8.8-final-6a6b54795.jar')
+].find { it.exists() }
+
+base {
+    archivesName = 'sbw-drone-warfare'
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
+    withSourcesJar()
+}
+
+minecraft {
+    mappings channel: 'parchment', version: '2023.08.13-1.20.1'
+    copyIdeResources = true
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'info'
+            mods {
+                sbwdroneconfig {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        client {
+            property 'forge.enabledGameTestNamespaces', 'sbwdroneconfig'
+        }
+
+        server {
+            property 'forge.enabledGameTestNamespaces', 'sbwdroneconfig'
+        }
+    }
+}
+
+repositories {
+    maven {
+        url = 'https://maven.minecraftforge.net'
+    }
+    maven {
+        url = 'https://repo.spongepowered.org/repository/maven-public/'
+    }
+    maven {
+        name = 'GeckoLib'
+        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+    }
+    mavenCentral()
+}
+
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.2.0'
+    compileOnly 'org.spongepowered:mixin:0.8.5'
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    compileOnly fg.deobf('software.bernie.geckolib:geckolib-forge-1.20.1:4.4.6')
+    runtimeOnly fg.deobf('software.bernie.geckolib:geckolib-forge-1.20.1:4.4.6')
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    if (!sbwCompileOnlyInputs.isEmpty()) {
+        compileOnly files(sbwCompileOnlyInputs)
+    } else if (sbwFallbackJar != null) {
+        compileOnly files(sbwFallbackJar)
+    }
+}
+
+mixin {
+    add sourceSets.main, 'sbwdroneconfig.refmap.json'
+    config 'sbwdroneconfig.mixins.json'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.named('test', Test).configure {
+    useJUnitPlatform()
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version      : '1.20.1',
+            minecraft_version_range: '[1.20.1,1.21)',
+            forge_version          : '47.2.0',
+            forge_version_range    : '[47,)',
+            loader_version_range   : '[47,)',
+            mod_id                 : 'sbwdroneconfig',
+            mod_name               : 'SBW Drone Warfare',
+            mod_license            : 'GNU GENERAL PUBLIC LICENSE',
+            mod_version            : project.version,
+            mod_authors            : 'Team SmartStreamLabs',
+            mod_description        : '''SBW Drone Warfare is a tactical drone expansion for Superb Warfare. It adds controllable FPV and LUCAS drones, drone inventories and modules, fiber optic links, jammers, radar tools, anti-drone nets, extraction crates, fuel production, battery support, weather camera effects, thermal vision, screenshots, configurable audio, spotlight systems, and a full in-game config GUI.'''
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
+        expand replaceProperties + [project: project]
+    }
+}
+
+tasks.named('jar', Jar).configure {
+    manifest {
+        attributes(
+                'MixinConfigs': 'sbwdroneconfig.mixins.json'
+        )
+    }
+}
