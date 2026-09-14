@@ -1,48 +1,58 @@
-# [SBW] Drone Range Config
+# SBW Drone Warfare — Fabric 1.21.1 port
 
-Addon mod for `Superb Warfare` on `Minecraft 1.20.1 Forge`.
+Fabric 1.21.1 port of [[SBW] Drone Warfare](https://github.com/SmartStreamLabs/-SBW-Drone-Warfare)
+by Team SmartStreamLabs, as an addon for
+[superbwarfare-fabric](https://github.com/netherg-io/superbwarfare-fabric) (Superb Warfare ported
+to Fabric). Maintained by [netherg-io](https://github.com/netherg-io) for the Blockfield server.
+Not affiliated with SmartStreamLabs or the Superb Warfare team.
 
-## What this addon changes
+Tracking issue: netherg-io/blockfield-releases#4.
 
-- Adds a server config for drone control distance.
-- Keeps the original default range at `100` blocks.
-- Optionally keeps chunks around the active drone loaded while it is being used.
-- Does not modify or redistribute Superb Warfare itself.
+## Status
 
-## Relevant Superb Warfare source locations
+**S0: provenance only, no Fabric code yet.** This branch still contains the upstream Forge 1.20.1
+sources of 1.0.1 unchanged. Branches:
 
-- Monitor state and linked-drone tracking:
-  - `src/main/kotlin/com/atsuishio/superbwarfare/item/misc/MonitorItem.kt`
-- Drone control packets:
-  - `src/main/kotlin/com/atsuishio/superbwarfare/network/message/send/VehicleMovementMessage.kt`
-  - `src/main/kotlin/com/atsuishio/superbwarfare/network/message/send/MouseMoveMessage.kt`
-  - `src/main/kotlin/com/atsuishio/superbwarfare/network/message/send/InteractMessage.kt`
-  - `src/main/kotlin/com/atsuishio/superbwarfare/network/message/send/DroneFireMessage.kt`
-- Linked drone lookup:
-  - `src/main/kotlin/com/atsuishio/superbwarfare/tools/EntityFindUtil.kt`
-- Distance warning HUD:
-  - `src/main/kotlin/com/atsuishio/superbwarfare/client/overlay/DroneHudOverlay.kt`
+- `main` mirrors upstream (`30e7b655e85301f7c3607d2279e8aad268dfa91d`, 1.0.1).
+- `fabric-1.21.1` (default) carries the port.
 
-## Range note
+Provenance and modifications: [NOTICE](./NOTICE). Asset sources and license status:
+[CREDITS.md](./CREDITS.md). Upstream README: [README-upstream.md](./README-upstream.md).
 
-In this SBW source snapshot, there is no explicit hardcoded `100` range constant for drone control. The practical limit appears to come from linked monitor handling plus world/chunk availability, while the HUD warning uses simulation distance. This addon therefore adds an explicit configurable server-side range gate with the original default of `100`.
+## Goal
 
-## Config location
+First public release: FPV drone with monitor, operator sessions and camera, Angle/Acro flight
+modes, payload mass, battery, radio link and EW jamming, fiber-optic control, contact detonation,
+engine sound. The operator stays physically in the world and vulnerable; control and camera always
+terminate cleanly.
 
-Forge writes the config to:
+## Build plan
 
-- `config/sbwdroneconfig-common.toml`
+1. **S0** (this state): fork, license, NOTICE, asset audit.
+2. **S1**: Fabric Loom 1.21.1 build (Java 21, Mojang mappings + Parchment, same toolchain as
+   superbwarfare-fabric), depending on a published superbwarfare-fabric release instead of local
+   SBW paths; choose the source base (1.0.1 here vs. the later NeoForge 1.21.1 tree in
+   [SBW-Drone-Warfare-Updated-8-28-2026](https://github.com/SmartStreamLabs/SBW-Drone-Warfare-Updated-8-28-2026)).
+3. **S2+**: port gameplay systems, replace assets marked "replace before release" in CREDITS.md.
 
-## Build
+Planned build, once code exists:
 
-Use Java 17:
-
-```powershell
-$env:JAVA_HOME='C:\Program Files\Eclipse Adoptium\jdk-17.0.9.9-hotspot'
-$env:Path="$env:JAVA_HOME\bin;$env:Path"
-.\gradlew.bat build
+```sh
+git clone -b fabric-1.21.1 https://github.com/netherg-io/sbw-drone-warfare-fabric.git
+cd sbw-drone-warfare-fabric
+./gradlew build --no-daemon   # JDK 21
 ```
 
-Built jar:
+No private repositories, tokens or local jars will be required.
 
-- `build/libs/sbw-drone-range-config-1.0.0.jar`
+## License
+
+GNU Affero General Public License v3.0, see [LICENSE](./LICENSE), inherited from upstream.
+Port changes by netherg-io are released under the same license.
+
+**AGPL-3.0 §13 (network use):** servers running this mod, including the Blockfield server, offer
+players the Corresponding Source through this repository: the `fabric-1.21.1` branch and the tag
+matching each released jar.
+
+Third-party assets keep their own licenses (see CREDITS.md). Assets under non-commercial licenses,
+such as the Geranium-2 model (CC BY-NC-SA 4.0), are not included.

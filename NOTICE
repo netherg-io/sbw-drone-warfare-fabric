@@ -1,0 +1,37 @@
+SBW Drone Warfare — Fabric 1.21.1 port
+=====================================
+
+This repository is a fork of:
+
+  [SBW] Drone Warfare
+  https://github.com/SmartStreamLabs/-SBW-Drone-Warfare
+  Upstream commit: 30e7b655e85301f7c3607d2279e8aad268dfa91d ("Changelog", 2026-06-24)
+  Upstream version at that commit: 1.0.1 (Forge 1.20.1)
+  Authors: Team SmartStreamLabs
+  License: GNU Affero General Public License v3.0 (see LICENSE)
+
+The `main` branch mirrors upstream unchanged. All Fabric port work lives on
+the `fabric-1.21.1` branch.
+
+Later upstream source (not yet merged here):
+  https://github.com/SmartStreamLabs/SBW-Drone-Warfare-Updated-8-28-2026
+  commit 9eb3b598083838facc16022738aa06ad48fbfb04 (2026-08-28), AGPL-3.0,
+  contains Forge 1.20.1 and NeoForge 1.21.1 trees.
+
+Modifications
+-------------
+The Fabric port changes are made by netherg-io
+(https://github.com/netherg-io) and contributors, and are licensed under the
+same AGPL-3.0 terms. Per AGPL-3.0 §5(a), changes are recorded with dates:
+
+  2026-09-14  Fork created. Added NOTICE, CREDITS.md, README.md; upstream
+              README moved to README-upstream.md. No code or asset changes.
+
+The full modification history is the git history of the `fabric-1.21.1` branch.
+
+Third-party assets are listed with their source and license status in
+CREDITS.md. Assets under non-commercial licenses (e.g. CC BY-NC-SA) are not
+included in this port.
+
+"Minecraft" is a trademark of Mojang Synergies AB. This project is not
+affiliated with Mojang, Microsoft, SmartStreamLabs or the Superb Warfare team.
