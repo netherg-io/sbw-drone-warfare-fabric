@@ -5,6 +5,7 @@ import com.atsuishio.superbwarfare.item.misc.MonitorItem;
 import com.atsuishio.superbwarfare.tools.EntityFindUtil;
 import com.atsuishio.superbwarfare.tools.NBTTool;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.CameraType;
@@ -13,6 +14,10 @@ import net.minecraft.client.Minecraft;
 public final class DroneWarfareClient implements ClientModInitializer {
     @Override public void onInitializeClient() {
         EntityRendererRegistry.register(DroneWarfare.FPV, DroneRenderer::new);
+        ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+            FpvDrone drone = viewedDrone();
+            FpvDrone.viewedId = drone == null ? -1 : drone.getId();
+        });
         HudRenderCallback.EVENT.register((graphics, tickCounter) -> {
             Minecraft mc = Minecraft.getInstance();
             FpvDrone drone = viewedDrone();

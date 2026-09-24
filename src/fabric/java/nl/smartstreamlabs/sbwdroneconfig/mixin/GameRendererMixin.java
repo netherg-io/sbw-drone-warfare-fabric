@@ -19,6 +19,6 @@ abstract class GameRendererMixin {
     @Inject(method = "bobHurt", at = @At("HEAD"))
     private void sbwdroneconfig$fpvRoll(PoseStack poseStack, float partialTick, CallbackInfo ci) {
         var drone = DroneWarfareClient.viewedDrone();
-        if (drone != null) poseStack.mulPose(Axis.ZP.rotationDegrees(drone.getRoll(partialTick)));
+        if (drone != null) poseStack.mulPose(Axis.ZP.rotationDegrees(drone.cameraRoll(partialTick)));
     }
 }

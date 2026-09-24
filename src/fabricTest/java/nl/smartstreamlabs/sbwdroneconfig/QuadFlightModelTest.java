@@ -71,6 +71,28 @@ class QuadFlightModelTest {
     }
 
     @Test
+    void anglesStayContinuousThroughALoop() {
+        Vector3d prev = euler(model.attitude, new Vector3d());
+        for (int i = 0; i < 30; i++) {
+            run(1, 0.5, 1, 0, 0, true);
+            Vector3d e = euler(model.attitude, prev);
+            assertTrue(e.distance(prev) < 30, "jump at tick " + i + ": " + prev + " -> " + e);
+            Quaterniond back = new Quaterniond().rotateY(Math.toRadians(-e.y)).rotateX(Math.toRadians(e.x)).rotateZ(Math.toRadians(e.z));
+            assertEquals(1, Math.abs(back.dot(model.attitude)), 1e-9);
+            prev = e;
+        }
+        assertTrue(prev.x > 180, "a full loop should pass 180 degrees of pitch: " + prev.x);
+    }
+
+    @Test
+    void headingSurvivesVerticalNose() {
+        model.attitude.identity().rotateY(Math.toRadians(-30)).rotateX(Math.toRadians(90));
+        assertEquals(Math.toRadians(30), model.heading(), 1e-6);
+        model.attitude.identity().rotateY(Math.toRadians(-30)).rotateX(Math.toRadians(-90));
+        assertEquals(Math.toRadians(30), model.heading(), 1e-6);
+    }
+
+    @Test
     void rollRightAndYawRightFollowMinecraftAxes() {
         run(20, HOVER_THROTTLE, 0, 1, 0, false);
         assertTrue(velocity.x < 0, "facing +Z, right is -X");
@@ -85,6 +107,17 @@ class QuadFlightModelTest {
         run(400, 1, 1, 0, 0, false);
         for (double m : model.motors) assertTrue(m >= 0 && m <= MOTOR_MAX + 1e-9);
         assertTrue(velocity.length() < 45, "speed " + velocity.length());
+    }
+
+    @Test
+    void cameraUptiltTiltsTheViewUp() {
+        Vector3d level = euler(new Quaterniond().mul(CAMERA_UPTILT));
+        assertEquals(-20, level.x, 1e-6);
+        assertEquals(0, level.y, 1e-6);
+        assertEquals(0, level.z, 1e-6);
+        // Banked right, the uptilted camera looks up and to the right of the nose.
+        Vector3d banked = euler(new Quaterniond().rotateZ(Math.toRadians(45)).mul(CAMERA_UPTILT));
+        assertEquals(14.4, banked.y, 0.1);
     }
 
     @Test

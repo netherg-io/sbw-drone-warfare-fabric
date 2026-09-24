@@ -39,7 +39,6 @@ public final class FpvDrone extends DroneEntity {
     static final EntityDataAccessor<Boolean> ACRO =
             SynchedEntityData.defineId(FpvDrone.class, EntityDataSerializers.BOOLEAN);
 
-    private static final float CAMERA_UPTILT = 20;
     private static final double STICK_SLEW = 0.25;
     private static final double THROTTLE_STEP = 0.025;
     private static final double FAILSAFE_THROTTLE = 0.9 * QuadFlightModel.HOVER_THROTTLE;
@@ -49,6 +48,11 @@ public final class FpvDrone extends DroneEntity {
     private double pitchStick;
     private double rollStick;
     private boolean modeKeyWasDown;
+    // Camera yaw/roll differ from the frame's once it banks; pitch goes to xRot, which only the camera reads.
+    private float camYaw, camYawO, camRoll, camRollO;
+
+    /** Entity id of the FPV drone the local player views through a monitor; set by the client each tick. */
+    static volatile int viewedId = -1;
 
     public FpvDrone(EntityType<? extends DroneEntity> type, Level level) {
         super(type, level);
@@ -101,7 +105,7 @@ public final class FpvDrone extends DroneEntity {
         double throttle = throttle();
         throttle = controlled
                 ? throttle + axis(upInputDown(), downInputDown()) * THROTTLE_STEP
-                : approach(throttle, onGround() ? 0 : FAILSAFE_THROTTLE, THROTTLE_STEP);
+                : approach(Math.min(throttle, FAILSAFE_THROTTLE), onGround() ? 0 : FAILSAFE_THROTTLE, THROTTLE_STEP);
         throttle = Mth.clamp(throttle, 0, 1);
         entityData.set(THROTTLE, (float) throttle);
 
@@ -123,18 +127,33 @@ public final class FpvDrone extends DroneEntity {
 
     @Override
     public void baseTick() {
+        camYawO = camYaw;
+        camRollO = camRoll;
         super.baseTick();
         // DroneEntity.baseTick decays roll after travel(); keep the model's attitude instead.
         applyAngles(entityData.get(ATTITUDE));
     }
 
     private void applyAngles(Quaternionf attitude) {
-        Vector3d euler = QuadFlightModel.euler(new Quaterniond(attitude));
-        // Unwrap against the previous tick so render interpolation never spins through 360 degrees.
-        setYRot(yRotO + Mth.wrapDegrees((float) euler.y - yRotO));
-        setBodyXRot((float) euler.x);
-        setXRot((float) euler.x - CAMERA_UPTILT);
-        setZRot(getPrevRoll() + Mth.wrapDegrees((float) euler.z - getPrevRoll()));
+        Quaterniond q = new Quaterniond(attitude);
+        Vector3d body = QuadFlightModel.euler(q, new Vector3d(getPitchO(), yRotO, getPrevRoll()));
+        setYRot((float) body.y);
+        setBodyXRot((float) body.x);
+        setZRot((float) body.z);
+        Vector3d camera = QuadFlightModel.euler(q.mul(QuadFlightModel.CAMERA_UPTILT), new Vector3d(xRotO, camYawO, camRollO));
+        setXRot((float) camera.x);
+        camYaw = (float) camera.y;
+        camRoll = (float) camera.z;
+    }
+
+    /** SBW's monitor camera and the drone renderer share this; the operator's own model is hidden in that view. */
+    @Override
+    public float getYaw(float tickDelta) {
+        return level().isClientSide() && getId() == viewedId ? Mth.lerp(tickDelta, camYawO, camYaw) : super.getYaw(tickDelta);
+    }
+
+    public float cameraRoll(float tickDelta) {
+        return Mth.lerp(tickDelta, camRollO, camRoll);
     }
 
     /** SBW DroneEntity.travel's contact check, kept so payload/kamikaze behaviour is unchanged. */
@@ -158,6 +177,10 @@ public final class FpvDrone extends DroneEntity {
     public void readAdditionalSaveData(CompoundTag tag) {
         super.readAdditionalSaveData(tag);
         entityData.set(ACRO, tag.getBoolean("FpvAcro"));
+        // Sync the loaded heading with the spawn packet, not one tick later.
+        model.level(Math.toRadians(getYRot()));
+        attitudeReady = true;
+        entityData.set(ATTITUDE, new Quaternionf(model.attitude));
     }
 
     private static double axis(boolean positive, boolean negative) {

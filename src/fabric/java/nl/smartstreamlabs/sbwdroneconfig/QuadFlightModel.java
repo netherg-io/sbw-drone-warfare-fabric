@@ -35,6 +35,9 @@ public final class QuadFlightModel {
     static final double RATE_GAIN = 0.5;
     static final double YAW_GAIN = 0.2;
 
+    /** FPV camera mount: 20 degrees up from the frame. Not rotationX: JOML 1.10.5 (Minecraft's) builds a wrong quaternion there. */
+    public static final Quaterniond CAMERA_UPTILT = new Quaterniond().rotateX(Math.toRadians(-20));
+
     // Motor positions (x, z) and spin direction; diagonals share a direction.
     private static final double[] MX = {MOTOR_OFFSET, -MOTOR_OFFSET, -MOTOR_OFFSET, MOTOR_OFFSET};
     private static final double[] MZ = {MOTOR_OFFSET, MOTOR_OFFSET, -MOTOR_OFFSET, -MOTOR_OFFSET};
@@ -118,7 +121,8 @@ public final class QuadFlightModel {
     /** Minecraft yaw in radians (0 = +Z, increases turning right). */
     public double heading() {
         Vector3d f = attitude.transform(new Vector3d(0, 0, 1));
-        if (f.x * f.x + f.z * f.z < 1e-6) f = attitude.transform(new Vector3d(0, 1, 0)).negate();
+        // Nose straight down: the top faces the heading; straight up: the belly does.
+        if (f.x * f.x + f.z * f.z < 1e-6) f = attitude.transform(new Vector3d(0, 1, 0)).mul(-Math.signum(f.y));
         return Math.atan2(-f.x, f.z);
     }
 
@@ -132,6 +136,23 @@ public final class QuadFlightModel {
     public static Vector3d euler(Quaterniond q) {
         Vector3d e = q.getEulerAnglesYXZ(new Vector3d());
         return new Vector3d(Math.toDegrees(e.x), -Math.toDegrees(e.y), Math.toDegrees(e.z));
+    }
+
+    /**
+     * Same angles, but of the two equivalent sets (p, y, r) and (180 - p, y + 180, r + 180) the one
+     * nearest to prev, each unwrapped towards it, so render interpolation stays continuous through
+     * vertical flight instead of spinning yaw and roll by 180 degrees.
+     */
+    public static Vector3d euler(Quaterniond q, Vector3d prev) {
+        Vector3d a = nearest(euler(q), prev);
+        Vector3d b = nearest(new Vector3d(180 - a.x, a.y + 180, a.z + 180), prev);
+        return a.distanceSquared(prev) <= b.distanceSquared(prev) ? a : b;
+    }
+
+    private static Vector3d nearest(Vector3d v, Vector3d ref) {
+        return new Vector3d(ref.x + Math.IEEEremainder(v.x - ref.x, 360),
+                ref.y + Math.IEEEremainder(v.y - ref.y, 360),
+                ref.z + Math.IEEEremainder(v.z - ref.z, 360));
     }
 
     public double thrustFraction() {
