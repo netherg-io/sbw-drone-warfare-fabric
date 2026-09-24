@@ -4,7 +4,21 @@ Public Fabric port of [SBW Drone Warfare](https://github.com/SmartStreamLabs/-SB
 
 ## Status
 
-S1 prototype: a Fabric registry, deployable FPV entity/item and client renderer. It inherits Superb Warfare flight and session control. **Angle/Acro, addon battery, EW and fiber are not ported. This is not a production replacement.** Tracking: [S1](https://github.com/netherg-io/sbw-drone-warfare-fabric/issues/1), [full port](https://github.com/netherg-io/blockfield-releases/issues/4).
+S2 flight: a deployable FPV drone with its own server-side quad model (four motor thrust points, mass, inertia, drag, airmode mixer), Angle and Acro modes and a throttle axis. Control, session checks, camera and HUD reuse the Superb Warfare monitor. **Payload mass, battery, radio/EW, fiber and contact detonation are not ported. This is not a production replacement.** Tracking: [S1](https://github.com/netherg-io/sbw-drone-warfare-fabric/issues/1), [full port](https://github.com/netherg-io/blockfield-releases/issues/4).
+
+### Flying the FPV drone
+
+Place the drone, link a Superb Warfare monitor to it (right-click the drone), then use the monitor to take control. Controls are the Superb Warfare vehicle bindings:
+
+| Input | Effect |
+|---|---|
+| Forward/back (W/S) | pitch: tilt angle in Angle mode, pitch rate in Acro |
+| Left/right (A/D) | roll, same split |
+| Mouse X | yaw rate |
+| Up/down (Space/Shift) | raise/lower the throttle; it stays where you leave it (hover ≈ 25 %) |
+| SBW "Ctrl" binding | toggle Angle/Acro |
+
+Angle mode limits tilt to 45° and levels itself when the sticks are released. Acro holds the current attitude and allows flips. The FPV camera is fixed to the frame with 20° uptilt. The HUD line shows mode, throttle and speed. Without an active control session the drone levels, descends at 90 % hover throttle and stops its motors on the ground. The model runs only on the server at the 20 Hz tick, so client frame rate does not change flight results. Model constants live in `QuadFlightModel`; `./gradlew test` checks hover, tilt limit, self-levelling, acro hold, axes and saturation.
 
 The `main` branch preserves upstream 1.0.1 (`30e7b655`). Only `src/fabric` is built into the Fabric jar; the original Forge sources and unverified assets under `src/main` are excluded. No later NC-licensed assets were imported.
 

@@ -99,3 +99,7 @@ declare these models:
 No files from `src/main/resources` are included in the Fabric artifact. The renderer references the installed LGPL-3.0-only `superbwarfare-fabric` drone model/texture/animation and engine sound, without redistributing them; the prototype item icon references vanilla iron ingot.
 
 Signal Jammer source: [AspectStudios, Signal Jammer {Draft}](https://sketchfab.com/3d-models/signal-jammer-draft-b567fbe6f16a43969fc204ee0f90b06d), CC Attribution. Model title and author match the OBJ header; unverified texture provenance is still not cleared. Neither is included.
+
+## Fabric FPV flight — 2026-09-24
+
+No assets were added. The flight HUD is plain text drawn with the vanilla font; flight code is original AGPL-3.0 work.
