@@ -109,6 +109,7 @@ public final class FpvDrone extends DroneEntity {
 
         Vec3 motion = getDeltaMovement();
         Vector3d velocity = new Vector3d(motion.x, motion.y, motion.z).mul(20);
+        if (onGround()) velocity.mul(0.5, 1, 0.5);
         model.step(velocity, throttle, pitchStick, rollStick, yawStick, controlled && isAcro(), armed);
         setDeltaMovement(velocity.x / 20, velocity.y / 20 + sbwGravity, velocity.z / 20);
         setPower(armed ? (float) (0.06 + 0.14 * model.thrustFraction()) : 0);

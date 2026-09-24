@@ -25,6 +25,13 @@ class QuadFlightModelTest {
     }
 
     @Test
+    void rotorDragStopsSlowDrift() {
+        velocity.set(1, 0, 0);
+        run(400, HOVER_THROTTLE, 0, 0, 0, false);
+        assertTrue(velocity.x > 0 && velocity.x < 0.1, "drift " + velocity.x);
+    }
+
+    @Test
     void disarmedFallsAtGravity() {
         model.step(velocity, 1, 0, 0, 0, false, false);
         assertEquals(-G * DT, velocity.y, 1e-9);

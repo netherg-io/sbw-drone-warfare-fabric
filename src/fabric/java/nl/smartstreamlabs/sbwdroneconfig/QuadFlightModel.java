@@ -23,6 +23,8 @@ public final class QuadFlightModel {
     public static final double MOTOR_MAX = MASS * G;
     static final double YAW_TORQUE_PER_NEWTON = 0.015;
     static final double DRAG = 0.025;
+    // Rotor (induced) drag is linear in speed and is what stops a slow drift at hover.
+    static final double ROTOR_DRAG = 0.1;
     public static final double HOVER_THROTTLE = MASS * G / (4 * MOTOR_MAX);
 
     public static final double MAX_TILT = Math.toRadians(45);
@@ -78,11 +80,11 @@ public final class QuadFlightModel {
         }
 
         Vector3d up = attitude.transform(new Vector3d(0, 1, 0));
-        double speed = velocity.length();
+        double drag = DRAG * velocity.length() + ROTOR_DRAG;
         velocity.add(
-                (up.x * thrust - DRAG * speed * velocity.x) / MASS * DT,
-                ((up.y * thrust - DRAG * speed * velocity.y) / MASS - G) * DT,
-                (up.z * thrust - DRAG * speed * velocity.z) / MASS * DT);
+                (up.x * thrust - drag * velocity.x) / MASS * DT,
+                ((up.y * thrust - drag * velocity.y) / MASS - G) * DT,
+                (up.z * thrust - drag * velocity.z) / MASS * DT);
     }
 
     private Vector3d angleModeRates(double pitch, double roll, double yaw) {
