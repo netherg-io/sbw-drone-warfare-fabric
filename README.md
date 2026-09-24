@@ -29,7 +29,7 @@ Smoke scenario: start dedicated server, connect two clients, summon FPV, check m
 
 ## Provenance and remaining port work
 
-[NOTICE](NOTICE), [asset credits](CREDITS.md), [source/binary audit](docs/PROVENANCE.md), [class/system map](docs/CLASS-MAP.md). The candidate source labelled 1.21.1 actually builds Forge 1.20.1; its exact relationship to the published NeoForge 1.0.6 binary is not established. Do not claim the published binary's bug fixes are present in this prototype.
+[NOTICE](NOTICE), [asset credits](CREDITS.md), [source/binary audit](docs/PROVENANCE.md), [class/system map](docs/CLASS-MAP.md). The author’s NeoForge 1.0.6 source is in the misleadingly named `SBW-Drone-Range-1.20.1` folder; its assets and class inventory match the published jar, but an equivalent rebuild is not yet verified. Do not claim the published binary's bug fixes are present in this prototype.
 
 Next: adapt addon systems against the pinned source and existing SBW lifecycle, replace unverifiable assets, test control/physics/radio/cleanup on two clients, then integrate stock/reward rules and ship through the versioned Blockfield modpack. Do not deploy the S1 prototype to production.
 
