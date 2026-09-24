@@ -168,7 +168,7 @@ public final class FpvDrone extends DroneEntity {
         Player controller = getController();
         boolean session = !"none".equals(entityData.get(SESSION));
         int cablePoints = link.cable.size();
-        if (link.update((ServerLevel) level(), position().add(0, getBbHeight() / 2, 0), controller, tickCount) && controller != null) {
+        if (link.update((ServerLevel) level(), position().add(0, getBbHeight() / 2, 0), controller, session, tickCount) && controller != null) {
             controller.displayClientMessage(Component.literal("FPV: FIBRE SNAPPED").withStyle(ChatFormatting.RED), true);
         }
         boolean frame = link.frame(random);
@@ -427,6 +427,7 @@ public final class FpvDrone extends DroneEntity {
         tag.putDouble("FpvBatteryUsedAh", battery.usedAh);
         tag.putFloat("FpvThrottle", throttle());
         tag.putFloat("FpvVolts", volts());
+        // Telemetry for /data get; recomputed, never loaded.
         tag.putFloat("FpvLinkQuality", linkQuality());
         tag.putFloat("FpvVideo", videoQuality());
         tag.putDouble("FpvControlSnr", link.controlSnr);

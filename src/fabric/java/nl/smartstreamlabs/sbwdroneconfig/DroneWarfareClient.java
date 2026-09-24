@@ -76,9 +76,8 @@ public final class DroneWarfareClient implements ClientModInitializer {
         Minecraft mc = Minecraft.getInstance();
         if (mc.level == null || poses == null) return;
         var buffers = mc.renderBuffers().bufferSource();
-        var lines = buffers.getBuffer(RenderType.lines());
         var pose = poses.last();
-        boolean drew = false;
+        com.mojang.blaze3d.vertex.VertexConsumer lines = null;
         for (var e : mc.level.entitiesForRendering()) {
             if (!(e instanceof FpvDrone drone) || !drone.fibre) continue;
             List<Float> c = drone.cable();
@@ -87,12 +86,12 @@ public final class DroneWarfareClient implements ClientModInitializer {
             if (drone.linkQuality() > 0) points.add(drone.getPosition(partial).add(0, drone.getBbHeight() / 2, 0));
             for (int i = 1; i < points.size(); i++) {
                 Vec3 a = points.get(i - 1).subtract(cam), b = points.get(i).subtract(cam), n = b.subtract(a).normalize();
+                if (lines == null) lines = buffers.getBuffer(RenderType.lines());
                 lines.addVertex(pose, (float) a.x, (float) a.y, (float) a.z).setColor(230, 230, 220, 255).setNormal(pose, (float) n.x, (float) n.y, (float) n.z);
                 lines.addVertex(pose, (float) b.x, (float) b.y, (float) b.z).setColor(230, 230, 220, 255).setNormal(pose, (float) n.x, (float) n.y, (float) n.z);
-                drew = true;
             }
         }
-        if (drew) buffers.endBatch(RenderType.lines());
+        if (lines != null) buffers.endBatch(RenderType.lines());
     }
 
     /** The FPV drone the local player is flying through an active SBW monitor, or null. */

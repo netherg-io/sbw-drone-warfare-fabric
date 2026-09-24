@@ -8,7 +8,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
@@ -28,8 +28,9 @@ final class FpvLink {
     static final int FAILSAFE_TICKS = 10;
     /** Obstruction counting stops here; the link is long dead by then. */
     static final double MAX_BLOCKS = 12;
-    /** Jammers farther than this are below the noise floor and are not traced. */
-    static final double JAMMER_REACH = 512;
+    // ponytail: a hard 2 km radio cap, far past any Blockfield map. It bounds the voxel walk and SBW's
+    // per-tick chunk tickets around a drone; replace it with a horizon/terrain model if maps grow.
+    static final double MAX_RANGE = 2000;
 
     /** Fibre spool, m, and its mass: thin G.657 fibre about 0.1 kg/km on a 0.1 kg bobbin. */
     static final double SPOOL_M = 3000;
@@ -78,34 +79,46 @@ final class FpvLink {
     }
 
     /** Re-samples the radio, or pays out fibre. Returns true when the fibre has just snapped. */
-    boolean update(ServerLevel level, Vec3 drone, @Nullable Player operator, long tick) {
+    boolean update(ServerLevel level, Vec3 drone, @Nullable Player operator, boolean session, long tick) {
         if (fibre) return payOut(drone);
-        if (tick % SAMPLE_TICKS != 0) return false;
-        if (operator == null || operator.level() != level) {
+        // Without a session nobody flies it; the next session is sampled within SAMPLE_TICKS.
+        if (!session || tick % SAMPLE_TICKS != 0) return false;
+        if (operator == null || operator.level() != level || operator.getEyePosition().distanceTo(drone) > MAX_RANGE) {
             controlSnr = videoSnr = -99;
             return false;
         }
         Vec3 op = operator.getEyePosition();
         double distance = op.distanceTo(drone);
-        double blocks = obstruction(level, op, drone);
+        var control = RadioLink.Band.CONTROL;
+        var video = RadioLink.Band.VIDEO;
+        // No walk when free space alone already kills both links.
+        boolean hopeless = RadioLink.snrDb(control, RadioLink.receivedDbm(control, control.txDbm, distance, 0), 0) < RadioLink.CONTROL_LOST_SNR
+                && RadioLink.snrDb(video, RadioLink.receivedDbm(video, video.txDbm, distance, 0), 0) < RadioLink.VIDEO_LOST_SNR;
+        double blocks = hopeless ? 0 : obstruction(level, op, drone);
+        double controlDbm = RadioLink.receivedDbm(control, control.txDbm, distance, blocks);
+        double videoDbm = RadioLink.receivedDbm(video, video.txDbm, distance, blocks);
         double jamAtDrone = 0, jamAtOperator = 0;
         for (Player p : level.players()) {
             if (!DroneWarfare.isJamming(p)) continue;
             Vec3 j = p.getEyePosition();
-            if (j.distanceTo(drone) < JAMMER_REACH) {
-                jamAtDrone += RadioLink.milliwatts(RadioLink.receivedDbm(RadioLink.Band.CONTROL, RadioLink.JAMMER_DBM,
-                        j.distanceTo(drone), obstruction(level, j, drone)));
-            }
-            if (j.distanceTo(op) < JAMMER_REACH) {
-                jamAtOperator += RadioLink.milliwatts(RadioLink.receivedDbm(RadioLink.Band.VIDEO, RadioLink.JAMMER_DBM,
-                        j.distanceTo(op), obstruction(level, j, op)));
-            }
+            jamAtDrone += jam(level, j, drone, control, controlDbm, RadioLink.CONTROL_CLEAN_SNR);
+            jamAtOperator += jam(level, j, op, video, videoDbm, RadioLink.VIDEO_CLEAN_SNR);
         }
-        controlSnr = RadioLink.snrDb(RadioLink.Band.CONTROL,
-                RadioLink.receivedDbm(RadioLink.Band.CONTROL, RadioLink.Band.CONTROL.txDbm, distance, blocks), jamAtDrone);
-        videoSnr = RadioLink.snrDb(RadioLink.Band.VIDEO,
-                RadioLink.receivedDbm(RadioLink.Band.VIDEO, RadioLink.Band.VIDEO.txDbm, distance, blocks), jamAtOperator);
+        controlSnr = RadioLink.snrDb(control, controlDbm, jamAtDrone);
+        videoSnr = RadioLink.snrDb(video, videoDbm, jamAtOperator);
         return false;
+    }
+
+    /**
+     * A jammer's power at a receiver, mW. The obstruction walk is skipped when even unobstructed the
+     * jammer leaves the link clean; its free-space power is then an upper bound that changes nothing,
+     * so the effect has no range cliff.
+     */
+    private static double jam(ServerLevel level, Vec3 jammer, Vec3 receiver, RadioLink.Band band, double signalDbm, double cleanSnr) {
+        double d = jammer.distanceTo(receiver);
+        double free = RadioLink.milliwatts(RadioLink.receivedDbm(band, RadioLink.JAMMER_DBM, d, 0));
+        if (RadioLink.snrDb(band, signalDbm, free) >= cleanSnr) return free;
+        return RadioLink.milliwatts(RadioLink.receivedDbm(band, RadioLink.JAMMER_DBM, d, obstruction(level, jammer, receiver)));
     }
 
     boolean payOutForTest(Vec3 drone) {
@@ -138,15 +151,17 @@ final class FpvLink {
 
     /**
      * Weighted count of blocks crossed by the segment: opaque blocks and fluids 1, other colliding
-     * blocks (glass, leaves, fences) 0.3. Unloaded chunks count as air rather than being loaded.
+     * blocks (glass, leaves, fences) 0.3. Chunks not fully loaded count as air; getChunkNow never
+     * loads or waits for one.
      */
-    static double obstruction(Level level, Vec3 from, Vec3 to) {
+    static double obstruction(ServerLevel level, Vec3 from, Vec3 to) {
         double[] blocks = {0};
         BlockGetter.traverseBlocks(from, to, level, (l, pos) -> {
-            if (!l.hasChunkAt(pos)) return null;
-            BlockState state = l.getBlockState(pos);
+            LevelChunk chunk = l.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4);
+            if (chunk == null) return null;
+            BlockState state = chunk.getBlockState(pos);
             if (state.canOcclude() || !state.getFluidState().isEmpty()) blocks[0] += 1;
-            else if (!state.getCollisionShape(l, pos).isEmpty()) blocks[0] += 0.3;
+            else if (!state.getCollisionShape(chunk, pos).isEmpty()) blocks[0] += 0.3;
             return blocks[0] >= MAX_BLOCKS ? Boolean.TRUE : null;
         }, l -> Boolean.FALSE);
         return blocks[0];

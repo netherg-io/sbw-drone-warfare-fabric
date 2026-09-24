@@ -68,7 +68,7 @@ public final class DroneWarfare implements ModInitializer {
     }
 
     static boolean isJamming(Player player) {
-        return isActive(player.getMainHandItem()) || isActive(player.getOffhandItem());
+        return player.isAlive() && !player.isSpectator() && (isActive(player.getMainHandItem()) || isActive(player.getOffhandItem()));
     }
 
     @Override public void onInitialize() {}
