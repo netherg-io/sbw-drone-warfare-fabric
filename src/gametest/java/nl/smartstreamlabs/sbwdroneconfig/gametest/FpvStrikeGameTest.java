@@ -147,6 +147,9 @@ public final class FpvStrikeGameTest implements FabricGameTest {
 
     /** An FPV with the Blockfield class warhead (PG-7VL), already armed for {@code operator}. */
     private static FpvDrone armed(GameTestHelper helper, ServerPlayer operator, BlockPos at) {
+        // Out of the strike path, as an armed drone's operator always is (arming needs 15 m).
+        Vec3 away = helper.absoluteVec(new Vec3(3.5, 1, -40));
+        operator.teleportTo(helper.getLevel(), away.x, away.y, away.z, 0, 0);
         FpvDrone drone = create(helper, at, 0);
         try {
             CompoundTag tag = drone.saveWithoutId(new CompoundTag());
