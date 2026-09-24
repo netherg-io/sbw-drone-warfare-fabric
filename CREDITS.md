@@ -107,3 +107,7 @@ No assets were added. The flight HUD is plain text drawn with the vanilla font; 
 ## Fabric FPV payload, battery and fuze — 2026-09-24
 
 No assets were added. HUD additions are vanilla-font text; payload, battery and fuze code is original AGPL-3.0 work. Payload models and the explosion come from the installed Superb Warfare jar and are not redistributed.
+
+## Fabric FPV link, jammer, fibre and motor tone — 2026-09-24
+
+No assets were added. The Signal Jammer item uses vanilla's lightning rod model and the fibre drone's icon vanilla string (both referenced from Minecraft, not copied); the upstream Signal Jammer OBJ/texture stays excluded. The fibre is drawn as vanilla line geometry, the video noise as filled GUI rectangles, and the motor tone is Superb Warfare's installed `drone_engine` sound. Link, jammer and fibre code is original AGPL-3.0 work.
