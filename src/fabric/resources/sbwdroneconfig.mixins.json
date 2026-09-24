@@ -2,6 +2,14 @@
   "required": true,
   "package": "nl.smartstreamlabs.sbwdroneconfig.mixin",
   "compatibilityLevel": "JAVA_21",
-  "client": ["GameRendererMixin"],
-  "injectors": {"defaultRequire": 1}
+  "client": [
+    "GameRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "mixins": [
+    "ChunkMapMixin",
+    "TrackedEntityMixin"
+  ]
 }

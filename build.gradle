@@ -15,6 +15,18 @@ repositories {
         url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
         content { includeGroupByRegex 'software\\.bernie.*' }
     }
+    // Runtime-only for the headless game tests: Superb Warfare's own dependencies.
+    maven { url = 'https://raw.githubusercontent.com/Fuzss/modresources/main/maven/'; content { includeGroup 'fuzs.forgeconfigapiport' } }
+    maven { url = 'https://maven.wispforest.io'; content { includeGroupByRegex 'io\\.wispforest.*' } }
+    maven { url = 'https://mvn.devos.one/snapshots/' }
+    maven { url = 'https://maven.createmod.net' }
+    maven { url = 'https://jitpack.io'; content { includeGroupByRegex 'com\\.github\\..*' } }
+    ivy {
+        url = 'https://github.com/netherg-io/simplebedrockmodel-fabric/releases/download'
+        patternLayout { artifact '[revision]/[artifact].[ext]' }
+        metadataSources { artifact() }
+        content { includeGroup 'netherg-io-sbm' }
+    }
     ivy {
         url = 'https://github.com/netherg-io/superbwarfare-fabric/releases/download'
         patternLayout { artifact '[revision]/[artifact].[ext]' }
@@ -33,6 +45,14 @@ dependencies {
     modImplementation 'netherg-io:superbwarfare-0.8.9.1-mc1.21.1-bf18:bf18'
     modImplementation 'software.bernie.geckolib:geckolib-fabric-1.21.1:4.7.5'
     modImplementation 'net.fabricmc:fabric-language-kotlin:1.13.7+kotlin.2.2.21'
+    // Dev runtime only (runGametest/runServer): SBW's own dependencies; nothing here is bundled.
+    modRuntimeOnly 'fuzs.forgeconfigapiport:forgeconfigapiport-fabric:21.1.6'
+    modRuntimeOnly 'io.wispforest:accessories-fabric:1.1.0-beta.53+1.21.1'
+    modRuntimeOnly 'netherg-io-sbm:simplebedrockmodel-fabric-2.5.1+mc1.21.1-bf4:bf4'
+    modRuntimeOnly 'com.maydaymemory:mae:1.1.4'
+    for (module in ['core', 'entity', 'level_events', 'client_events', 'transfer', 'items']) {
+        modRuntimeOnly "io.github.fabricators_of_create.Porting-Lib:$module:3.1.0-beta.90+1.21.1"
+    }
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
 }
@@ -43,6 +63,38 @@ sourceSets.main {
     resources.setSrcDirs(['src/fabric/resources'])
 }
 sourceSets.test.java.setSrcDirs(['src/fabricTest/java'])
+// In-engine tests on a headless dedicated server: ./gradlew runGametest (report in build/gametest/junit.xml).
+sourceSets {
+    gametest {
+        java.setSrcDirs(['src/gametest/java'])
+        resources.setSrcDirs(['src/gametest/resources'])
+        compileClasspath += main.compileClasspath + main.output
+        runtimeClasspath += main.runtimeClasspath + main.output
+    }
+}
+loom {
+    mods {
+        sbwdroneconfig { sourceSet sourceSets.main }
+        sbwdroneconfig_gametest { sourceSet sourceSets.gametest }
+    }
+    runs {
+        gametest {
+            server()
+            name 'Game Test'
+            source sourceSets.gametest
+            vmArg '-Dfabric-api.gametest'
+            vmArg "-Dfabric-api.gametest.report-file=${project.layout.buildDirectory.get().asFile}/gametest/junit.xml"
+            runDir 'build/gametest'
+        }
+    }
+}
+tasks.matching { it.name == 'runGametest' }.configureEach {
+    doFirst {
+        def dir = file('build/gametest')
+        dir.mkdirs()
+        new File(dir, 'eula.txt').text = 'eula=true\n'
+    }
+}
 processResources {
     inputs.property 'version', project.version
     filesMatching('fabric.mod.json') { expand version: project.version }

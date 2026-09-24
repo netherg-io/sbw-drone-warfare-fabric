@@ -14,6 +14,26 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - run: ./gradlew --no-daemon build
       - run: python3 scripts/check-artifact.py
+      # Headless dedicated server with SBW: in-engine scenarios (src/gametest), numbers in the log.
+      - run: ./gradlew --no-daemon runGametest
+      - if: always()
+        run: |
+          grep -h 'FPV-' build/gametest/logs/latest.log || true
+          # Also as annotations, readable from the check run without the full log.
+          grep -h -o 'FPV-.*' build/gametest/logs/latest.log | sed 's/^/::notice title=game test::/' || true
+      - if: failure()
+        run: |
+          grep -h -B2 -A25 -E 'Exception|Error|FAILED|failed' build/gametest/logs/latest.log | head -300 || true
+          for f in build/gametest/crash-reports/*.txt; do [ -f "$f" ] && head -120 "$f"; done
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gametest
+          path: |
+            build/gametest/logs/
+            build/gametest/crash-reports/
+            build/gametest/junit.xml
+          if-no-files-found: ignore
       - uses: actions/upload-artifact@v4
         with:
           name: fabric-prototype
