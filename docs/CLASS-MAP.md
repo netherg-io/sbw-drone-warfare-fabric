@@ -6,7 +6,7 @@ Names below refer to the preserved 1.0.1 source in `src/main/java/nl/smartstream
 |---|---|---|---|
 | Entity/deployer | `CubedFpvDroneEntity`, `CubedFpvDroneItem`, `AddonEntities`, `AddonItems` | `DroneEntity`, `AbstractDeployerItem` | `FpvDrone` (own flight, SBW lifecycle); upstream 1 HP/damage multiplier and crowbar pickup not ported |
 | Session/packets | `DroneControlEvents`, `AddonNetwork`, operator visibility messages | `control/DroneControlSession`, `DroneControlEvents`, owner/generation/sequence checks | Reuse the server-authoritative lifecycle; validate new inputs against it |
-| Camera/HUD | `DroneClientViewContext`, `CubedFpvHudOverlay`, `CubedFpvCameraEffectsClient` | monitor camera and drone HUD | Adapt addon overlays without hiding or teleporting the operator |
+| Camera/HUD | `DroneClientViewContext`, `CubedFpvHudOverlay`, `CubedFpvCameraEffectsClient` | monitor camera and drone HUD | FPV: SBW monitor camera with 20° uptilt, roll via `GameRendererMixin`, text HUD line; adapt the remaining addon overlays without hiding or teleporting the operator |
 | Physics/payload | `DroneSpeedSystem`, `DronePayloadMounts`, `LucasFixedWingFlightController` | base drone flight and attachment data | Done for the FPV: `QuadFlightModel` (Angle/Acro, throttle axis, four thrust points) driven by SBW session-checked inputs in `FpvDrone.travel`; scout untouched. Payload mass pending |
 | Battery | `DroneBatterySystem` | vehicle energy data; drone has MaxEnergy=0 | Adapt battery drain and payload mass |
 | Radio/EW | `DroneJammerSystem`, `DroneJammerEvents`, `DroneJammerMode` | distance limits | Adapt LOS/NLOS, jammers and bounded signal sampling |

@@ -10,6 +10,7 @@ import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.AreaEffectCloud;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
@@ -140,7 +141,7 @@ public final class FpvDrone extends DroneEntity {
     private void crashIntoEntities() {
         Player controller = getController();
         AABB box = AABB.ofSize(getEyePosition(), 0.7, 0.3, 0.7);
-        for (var target : level().getEntitiesOfClass(net.minecraft.world.entity.Entity.class, box, e -> e != this
+        for (var target : level().getEntitiesOfClass(Entity.class, box, e -> e != this
                 && !(e instanceof ItemEntity || e instanceof Projectile || e instanceof AreaEffectCloud || e instanceof C4Entity
                 || e.getType().is(ModTags.EntityTypes.DECOY)))) {
             hitEntityCrash(controller, target);
