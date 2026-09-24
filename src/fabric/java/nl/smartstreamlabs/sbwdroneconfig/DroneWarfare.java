@@ -2,6 +2,8 @@ package nl.smartstreamlabs.sbwdroneconfig;
 
 import com.atsuishio.superbwarfare.item.misc.AbstractDeployerItem;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.Registry;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -71,5 +73,8 @@ public final class DroneWarfare implements ModInitializer {
         return player.isAlive() && !player.isSpectator() && (isActive(player.getMainHandItem()) || isActive(player.getOffhandItem()));
     }
 
-    @Override public void onInitialize() {}
+    @Override public void onInitialize() {
+        ServerTickEvents.END_SERVER_TICK.register(RemoteView::tick);
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> RemoteView.clear());
+    }
 }

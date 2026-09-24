@@ -1,5 +1,6 @@
 package nl.smartstreamlabs.sbwdroneconfig;
 
+import com.atsuishio.superbwarfare.control.DroneControlAccess;
 import com.atsuishio.superbwarfare.data.CustomData;
 import com.atsuishio.superbwarfare.entity.projectile.C4Entity;
 import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
@@ -14,6 +15,7 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.Entity;
@@ -166,6 +168,10 @@ public final class FpvDrone extends DroneEntity {
         }
 
         Player controller = getController();
+        // The pilot's client follows the drone, not his body, or it loses the drone past his view distance.
+        if (controller instanceof ServerPlayer pilot && DroneControlAccess.INSTANCE.canUse(pilot, this, true)) {
+            RemoteView.pilot(pilot, this);
+        }
         boolean session = !"none".equals(entityData.get(SESSION));
         int cablePoints = link.cable.size();
         if (link.update((ServerLevel) level(), position().add(0, getBbHeight() / 2, 0), controller, session, tickCount) && controller != null) {
