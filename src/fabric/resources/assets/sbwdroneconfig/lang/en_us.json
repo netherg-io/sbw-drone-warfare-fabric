@@ -1,4 +1,9 @@
 {
   "item.sbwdroneconfig.cubed_fpv_drone": "FPV Drone (Fabric prototype)",
-  "entity.sbwdroneconfig.cubed_fpv_drone": "FPV Drone (Fabric prototype)"
+  "entity.sbwdroneconfig.cubed_fpv_drone": "FPV Drone (Fabric prototype)",
+  "item.sbwdroneconfig.fibre_fpv_drone": "Fibre-optic FPV Drone (Fabric prototype)",
+  "entity.sbwdroneconfig.fibre_fpv_drone": "Fibre-optic FPV Drone (Fabric prototype)",
+  "item.sbwdroneconfig.signal_jammer": "Signal Jammer",
+  "message.sbwdroneconfig.jammer_on": "Signal Jammer ON",
+  "message.sbwdroneconfig.jammer_off": "Signal Jammer OFF"
 }

@@ -4,6 +4,7 @@ import com.atsuishio.superbwarfare.data.CustomData;
 import com.atsuishio.superbwarfare.entity.projectile.C4Entity;
 import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
+import com.atsuishio.superbwarfare.init.ModSerializers;
 import com.atsuishio.superbwarfare.init.ModTags;
 import com.atsuishio.superbwarfare.tools.DamageHandler;
 import net.minecraft.ChatFormatting;
@@ -12,6 +13,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.AreaEffectCloud;
 import net.minecraft.world.entity.Entity;
@@ -32,6 +34,8 @@ import org.joml.Quaterniond;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 
+import java.util.List;
+
 /**
  * FPV quad on top of the SBW drone lifecycle (monitor link, control session, HUD, camera).
  * Only the flight is replaced: the server runs {@link QuadFlightModel} from the session-checked
@@ -40,7 +44,9 @@ import org.joml.Vector3d;
  * Controls: W/S pitch, A/D roll, mouse X yaw, Space/Shift move a throttle that stays where it is
  * left, Ctrl toggles Angle/Acro. Without an active session, or with an empty {@link Battery}, the
  * drone levels and descends. The SBW attachment adds its {@link Payload} mass; a kamikaze warhead
- * arms only away from the operator and then fires on a nose strike.
+ * arms only away from the operator and then fires on a nose strike. The link is a radio
+ * ({@link RadioLink}: range, obstruction, jamming) or, for the fibre variant, a cable; losing it
+ * puts the drone into the same failsafe.
  */
 public final class FpvDrone extends DroneEntity {
     static final EntityDataAccessor<Quaternionf> ATTITUDE =
@@ -57,6 +63,14 @@ public final class FpvDrone extends DroneEntity {
             SynchedEntityData.defineId(FpvDrone.class, EntityDataSerializers.FLOAT);
     static final EntityDataAccessor<Boolean> ARMED =
             SynchedEntityData.defineId(FpvDrone.class, EntityDataSerializers.BOOLEAN);
+    static final EntityDataAccessor<Float> LINK_QUALITY =
+            SynchedEntityData.defineId(FpvDrone.class, EntityDataSerializers.FLOAT);
+    static final EntityDataAccessor<Float> VIDEO =
+            SynchedEntityData.defineId(FpvDrone.class, EntityDataSerializers.FLOAT);
+    static final EntityDataAccessor<Float> FIBRE_M =
+            SynchedEntityData.defineId(FpvDrone.class, EntityDataSerializers.FLOAT);
+    static final EntityDataAccessor<List<Float>> CABLE =
+            SynchedEntityData.defineId(FpvDrone.class, ModSerializers.FLOAT_LIST_SERIALIZER.get());
 
     private static final double STICK_SLEW = 0.25;
     private static final double THROTTLE_STEP = 0.025;
@@ -65,6 +79,10 @@ public final class FpvDrone extends DroneEntity {
 
     private final QuadFlightModel model = new QuadFlightModel();
     private final Battery battery = new Battery();
+    final boolean fibre;
+    private final FpvLink link;
+    private boolean linkWasUp = true;
+    private double yawStick;
     private boolean attitudeReady;
     private double pitchStick;
     private double rollStick;
@@ -79,11 +97,16 @@ public final class FpvDrone extends DroneEntity {
     /** Entity id of the FPV drone the local player views through a monitor; set by the client each tick. */
     static volatile int viewedId = -1;
 
-    public FpvDrone(EntityType<? extends DroneEntity> type, Level level) {
+    public FpvDrone(EntityType<? extends DroneEntity> type, Level level, boolean fibre) {
         super(type, level);
+        this.fibre = fibre;
+        this.link = new FpvLink(fibre);
     }
 
-    @Override public Item droneItem() { return DroneWarfare.FPV_ITEM; }
+    @Override public Item droneItem() { return fibre ? DroneWarfare.FPV_FIBRE_ITEM : DroneWarfare.FPV_ITEM; }
+
+    /** SBW's fixed range ends in a signal-loss explosion; here the link model decides, and a lost link is a failsafe. */
+    @Override public double getMaxControlDistance() { return 1e6; }
 
     @Override
     protected void defineSynchedData(SynchedEntityData.Builder builder) {
@@ -95,7 +118,19 @@ public final class FpvDrone extends DroneEntity {
         builder.define(CHARGE, 1f);
         builder.define(PAYLOAD_KG, 0f);
         builder.define(ARMED, false);
+        builder.define(LINK_QUALITY, 1f);
+        builder.define(VIDEO, 1f);
+        builder.define(FIBRE_M, 0f);
+        builder.define(CABLE, List.of());
     }
+
+    public float linkQuality() { return entityData.get(LINK_QUALITY); }
+
+    public float videoQuality() { return entityData.get(VIDEO); }
+
+    public float fibrePaidOut() { return entityData.get(FIBRE_M); }
+
+    public List<Float> cable() { return entityData.get(CABLE); }
 
     public boolean isAcro() { return entityData.get(ACRO); }
 
@@ -131,32 +166,55 @@ public final class FpvDrone extends DroneEntity {
         }
 
         Player controller = getController();
+        boolean session = !"none".equals(entityData.get(SESSION));
+        int cablePoints = link.cable.size();
+        if (link.update((ServerLevel) level(), position().add(0, getBbHeight() / 2, 0), controller, tickCount) && controller != null) {
+            controller.displayClientMessage(Component.literal("FPV: FIBRE SNAPPED").withStyle(ChatFormatting.RED), true);
+        }
+        boolean frame = link.frame(random);
+        boolean linkUp = link.up();
+        if (session && linkUp != linkWasUp && controller != null) {
+            controller.displayClientMessage(linkUp ? Component.literal("FPV: LINK OK").withStyle(ChatFormatting.GREEN)
+                    : Component.literal("FPV: LINK LOST, FAILSAFE").withStyle(ChatFormatting.RED), true);
+        }
+        linkWasUp = linkUp;
+        entityData.set(LINK_QUALITY, (float) link.controlQuality());
+        entityData.set(VIDEO, (float) link.videoQuality());
+        if (fibre) {
+            entityData.set(FIBRE_M, (float) link.paidOut);
+            if (link.cable.size() != cablePoints) entityData.set(CABLE, link.packCable());
+        }
+
         boolean wasEmpty = battery.empty();
-        boolean controlled = !"none".equals(entityData.get(SESSION)) && !wasEmpty;
+        boolean controlled = session && !wasEmpty && linkUp;
+        // A lost control frame holds the last sticks, as a real receiver does until failsafe.
+        boolean fresh = controlled && frame;
         updateArming(controller, controlled);
-        boolean modeKey = controlled && sprintInputDown();
+        boolean modeKey = fresh && sprintInputDown();
         if (modeKey && !modeKeyWasDown) {
             entityData.set(ACRO, !isAcro());
             if (controller != null) {
                 controller.displayClientMessage(Component.literal(isAcro() ? "FPV: ACRO" : "FPV: ANGLE"), true);
             }
         }
-        modeKeyWasDown = modeKey;
+        if (frame || !controlled) modeKeyWasDown = modeKey;
 
-        pitchStick = approach(pitchStick, controlled ? axis(forwardInputDown(), backInputDown()) : 0, STICK_SLEW);
-        rollStick = approach(rollStick, controlled ? axis(rightInputDown(), leftInputDown()) : 0, STICK_SLEW);
-        // Same mouse scale as the SBW drone (0.5 deg/tick per unit), expressed as a stick.
-        double yawStick = controlled ? Mth.clamp(getMouseMoveSpeedX() * 10 / Math.toDegrees(QuadFlightModel.YAW_RATE), -1, 1) : 0;
+        if (fresh || !controlled) {
+            pitchStick = approach(pitchStick, fresh ? axis(forwardInputDown(), backInputDown()) : 0, STICK_SLEW);
+            rollStick = approach(rollStick, fresh ? axis(rightInputDown(), leftInputDown()) : 0, STICK_SLEW);
+            // Same mouse scale as the SBW drone (0.5 deg/tick per unit), expressed as a stick.
+            yawStick = fresh ? Mth.clamp(getMouseMoveSpeedX() * 10 / Math.toDegrees(QuadFlightModel.YAW_RATE), -1, 1) : 0;
+        }
 
         double payloadKg = getCurrentItem().isEmpty() ? 0 : Payload.massKg(getItemId(getCurrentItem()), getAmmo());
-        model.mass = QuadFlightModel.MASS + payloadKg;
+        model.mass = QuadFlightModel.MASS + payloadKg + link.spoolKg();
         model.thrustScale = battery.thrustScale();
         double hover = model.hoverThrottle();
         double failsafe = Math.min(1, FAILSAFE_HOVER_SHARE * hover);
 
         double throttle = throttle();
         throttle = controlled
-                ? throttle + axis(upInputDown(), downInputDown()) * THROTTLE_STEP
+                ? throttle + (fresh ? axis(upInputDown(), downInputDown()) * THROTTLE_STEP : 0)
                 : approach(Math.min(throttle, failsafe), onGround() ? 0 : failsafe, THROTTLE_STEP);
         throttle = Mth.clamp(throttle, 0, 1);
         entityData.set(THROTTLE, (float) throttle);
@@ -169,7 +227,7 @@ public final class FpvDrone extends DroneEntity {
         if (onGround()) velocity.mul(0.5, 1, 0.5);
         model.step(velocity, throttle, pitchStick, rollStick, yawStick, controlled && isAcro(), armed);
         setDeltaMovement(velocity.x / 20, velocity.y / 20 + sbwGravity, velocity.z / 20);
-        setPower(armed ? (float) (0.06 + 0.14 * model.thrustFraction()) : 0);
+        setPower(armed ? MotorSound.power(MotorSound.pitch(model.thrustFraction())) : 0);
 
         battery.step(model.electricalPower() + Battery.AVIONICS_W, QuadFlightModel.DT);
         if (!wasEmpty && battery.empty() && controller != null) {
@@ -190,6 +248,8 @@ public final class FpvDrone extends DroneEntity {
         camYawO = camYaw;
         camRollO = camRoll;
         pitchPrev = pitch;
+        // Without a link the drop/detonate command never reaches the drone.
+        if (!level().isClientSide() && !link.up()) setFire(false);
         if (!level().isClientSide() && getFire() && kamikaze() && !live()) {
             // SBW's manual detonation would destroy the drone with a dud warhead.
             setFire(false);
@@ -343,10 +403,6 @@ public final class FpvDrone extends DroneEntity {
         super.destroy();
     }
 
-    @Override
-    public double getMaxControlDistance() {
-        return detonated ? Double.MAX_VALUE : super.getMaxControlDistance();
-    }
 
     private void clearPayload() {
         setCurrentItem(ItemStack.EMPTY);
@@ -358,6 +414,11 @@ public final class FpvDrone extends DroneEntity {
     }
 
     @Override
+    public float getEngineSoundVolume() {
+        return engineRunning() ? MotorSound.volume(getPower()) : 0;
+    }
+
+    @Override
     public void addAdditionalSaveData(CompoundTag tag) {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("FpvAcro", isAcro());
@@ -366,6 +427,10 @@ public final class FpvDrone extends DroneEntity {
         tag.putDouble("FpvBatteryUsedAh", battery.usedAh);
         tag.putFloat("FpvThrottle", throttle());
         tag.putFloat("FpvVolts", volts());
+        tag.putFloat("FpvLinkQuality", linkQuality());
+        tag.putFloat("FpvVideo", videoQuality());
+        tag.putDouble("FpvControlSnr", link.controlSnr);
+        link.save(tag);
     }
 
     @Override
@@ -379,6 +444,9 @@ public final class FpvDrone extends DroneEntity {
         battery.volts = battery.openCircuitVolts();
         entityData.set(VOLTS, (float) battery.volts);
         entityData.set(CHARGE, (float) battery.charge());
+        link.load(tag);
+        entityData.set(FIBRE_M, (float) link.paidOut);
+        entityData.set(CABLE, link.packCable());
         // Sync the loaded heading with the spawn packet, not one tick later.
         model.level(Math.toRadians(getYRot()));
         attitudeReady = true;
