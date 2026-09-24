@@ -7,14 +7,15 @@
   "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
-      "nl.smartstreamlabs.sbwdroneconfig.gametest.PilotViewGameTest"
+      "nl.smartstreamlabs.sbwdroneconfig.gametest.PilotViewGameTest",
+      "nl.smartstreamlabs.sbwdroneconfig.gametest.FpvStrikeGameTest"
     ]
-  },
-  "depends": {
-    "sbwdroneconfig": "*",
-    "fabric-gametest-api-v1": "*"
   },
   "mixins": [
     "sbwdroneconfig_gametest.mixins.json"
-  ]
+  ],
+  "depends": {
+    "sbwdroneconfig": "*",
+    "fabric-gametest-api-v1": "*"
+  }
 }
