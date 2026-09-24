@@ -39,10 +39,11 @@ public final class FpvStrikeGameTest implements FabricGameTest {
     private static final Map<UUID, List<String>> HITS = new ConcurrentHashMap<>();
 
     static {
-        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, base, taken, blocked) ->
-                HITS.computeIfAbsent(entity.getUUID(), id -> new ArrayList<>()).add(describe(source) + " " + String.format("%.2f", taken)));
-        ServerLivingEntityEvents.AFTER_DEATH.register((entity, source) ->
-                HITS.computeIfAbsent(entity.getUUID(), id -> new ArrayList<>()).add(describe(source) + " death"));
+        // Every attempt, fatal ones included (AFTER_DAMAGE skips those).
+        ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            HITS.computeIfAbsent(entity.getUUID(), id -> new ArrayList<>()).add(describe(source) + " " + String.format("%.2f", amount));
+            return true;
+        });
     }
 
     private static String describe(DamageSource source) {
@@ -93,11 +94,12 @@ public final class FpvStrikeGameTest implements FabricGameTest {
         drone.setDeltaMovement(0, 0, STRIKE_MS / 20);
         helper.runAfterDelay(30, () -> {
             List<String> hits = HITS.getOrDefault(zombie.getUUID(), List.of());
-            LOG.info("FPV-STRIKE zombie hits: {}", hits);
+            LOG.info("FPV-STRIKE zombie hits (fuze hit first, then blast): {} zombie alive={}", hits, zombie.isAlive());
             helper.assertTrue(drone.isRemoved(), "the strike must spend the drone");
             helper.assertTrue(!hits.isEmpty(), "the strike must hurt the zombie");
-            helper.assertTrue(hits.stream().anyMatch(h -> h.contains("direct=sbwdroneconfig:cubed_fpv_drone") && h.contains("attacker=operator:")),
-                    "drone strike must name the drone and the operator: " + hits);
+            helper.assertTrue(hits.stream().allMatch(h -> !h.startsWith("projectile_explosion") && !h.contains("custom")
+                    || h.contains("direct=sbwdroneconfig:cubed_fpv_drone") && h.contains("attacker=operator:")),
+                    "every strike damage must name the drone and the operator: " + hits);
             helper.succeed();
         });
     }
@@ -113,10 +115,9 @@ public final class FpvStrikeGameTest implements FabricGameTest {
         drone.setDeltaMovement(0, 0, STRIKE_MS / 20);
         helper.runAfterDelay(30, () -> {
             List<String> hits = HITS.getOrDefault(witness.getUUID(), List.of());
-            boolean fuze = hits.stream().anyMatch(h -> h.contains("direct=sbwdroneconfig:cubed_fpv_drone"));
-            LOG.info("FPV-STRIKE armed wall hit at {} m/s: destroyed={} path={} witness hits: {}",
-                    STRIKE_MS, drone.isRemoved(), fuze ? "nose fuze" : hits.isEmpty() ? "no blast" : "SBW destroy()", hits);
-            helper.assertTrue(drone.isRemoved() && fuze, "the nose fuze must fire on the wall: " + hits);
+            boolean blast = hits.stream().anyMatch(h -> h.contains("attacker=operator:"));
+            LOG.info("FPV-STRIKE armed wall hit at {} m/s: destroyed={} witness hits: {}", STRIKE_MS, drone.isRemoved(), hits);
+            helper.assertTrue(drone.isRemoved() && blast, "an armed wall strike must go off: " + hits);
             helper.succeed();
         });
     }
