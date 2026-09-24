@@ -20,7 +20,6 @@ import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.Projectile;
-import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
@@ -74,6 +73,8 @@ public final class FpvDrone extends DroneEntity {
     private float camYaw, camYawO, camRoll, camRollO;
     // Model pitch; SBW's bodyPitch/pitchO hold render values derived from it.
     private float pitch, pitchPrev;
+    private String armedFor = "";
+    private boolean detonated;
 
     /** Entity id of the FPV drone the local player views through a monitor; set by the client each tick. */
     static volatile int viewedId = -1;
@@ -109,6 +110,11 @@ public final class FpvDrone extends DroneEntity {
     public boolean isArmed() { return entityData.get(ARMED); }
 
     private boolean kamikaze() { return entityData.get(IS_KAMIKAZE) && getAmmo() > 0; }
+
+    /** Operator and warhead the fuze armed for; another of either is safe until it arms itself. */
+    private String armKey() { return entityData.get(CONTROLLER) + "|" + getItemId(getCurrentItem()); }
+
+    private boolean live() { return isArmed() && armedFor.equals(armKey()); }
 
     @Override
     public void travel() {
@@ -184,7 +190,7 @@ public final class FpvDrone extends DroneEntity {
         camYawO = camYaw;
         camRollO = camRoll;
         pitchPrev = pitch;
-        if (!level().isClientSide() && getFire() && kamikaze() && !isArmed()) {
+        if (!level().isClientSide() && getFire() && kamikaze() && !live()) {
             // SBW's manual detonation would destroy the drone with a dud warhead.
             setFire(false);
             Player controller = getController();
@@ -244,11 +250,13 @@ public final class FpvDrone extends DroneEntity {
 
     /** Arms once, latched, when the flying drone first gets far enough from its operator; disarms when the warhead is gone. */
     private void updateArming(@Nullable Player controller, boolean controlled) {
-        if (!kamikaze()) {
+        if (!kamikaze() || !armedFor.equals(armKey())) {
             entityData.set(ARMED, false);
-        } else if (!isArmed() && controlled && controller != null && controller.level() == level()
+        }
+        if (kamikaze() && !isArmed() && controlled && controller != null && controller.level() == level()
                 && distanceTo(controller) >= armDistance()) {
             entityData.set(ARMED, true);
+            armedFor = armKey();
             controller.displayClientMessage(Component.literal("FPV: ARMED").withStyle(ChatFormatting.RED), true);
         }
     }
@@ -264,19 +272,42 @@ public final class FpvDrone extends DroneEntity {
      */
     @Override
     public void move(MoverType type, Vec3 movement) {
-        Vec3 nose = type == MoverType.SELF && !level().isClientSide() && isArmed() && kamikaze() ? nosePosition() : null;
+        Vec3 nose = type == MoverType.SELF && !level().isClientSide() && live() && kamikaze() ? nosePosition() : null;
         super.move(type, movement);
-        if (nose == null || !isAlive() || movement.lengthSqr() < 1e-8) return;
+        if (nose == null || detonated || !isAlive() || movement.lengthSqr() < 1e-8) return;
         Vector3d axis = model.attitude.transform(new Vector3d(0, 0, 1));
         if (!Payload.noseStrikes(axis, new Vector3d(movement.x, movement.y, movement.z).mul(20))) return;
 
-        Vec3 end = nose.add(movement).add(movement.normalize().scale(Payload.NOSE_RADIUS));
-        HitResult block = level().clip(new ClipContext(nose, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
-        if (block.getType() != HitResult.Type.MISS) end = block.getLocation();
-        var entity = ProjectileUtil.getEntityHitResult(level(), this, nose, end, new AABB(nose, end).inflate(1),
-                this::fuzeTarget, (float) Payload.NOSE_RADIUS);
-        if (entity != null) detonate(entity.getEntity(), entity.getLocation());
-        else if (block.getType() != HitResult.Type.MISS) detonate(null, block.getLocation());
+        Vec3 dir = movement.normalize();
+        Vec3 reach = movement.add(dir.scale(Payload.NOSE_RADIUS));
+        // Blocks: the centre and four rim rays of the nose zone, nearest contact first. A ray that
+        // starts inside a block hits at once: the nose is already in it.
+        Vec3 u = dir.cross(Math.abs(dir.y) < 0.9 ? new Vec3(0, 1, 0) : new Vec3(1, 0, 0)).normalize().scale(Payload.NOSE_RADIUS);
+        Vec3 v = dir.cross(u);
+        Vec3 blockHit = null;
+        double reachLeft = Double.MAX_VALUE;
+        for (Vec3 offset : new Vec3[]{Vec3.ZERO, u, u.reverse(), v, v.reverse()}) {
+            Vec3 from = nose.add(offset);
+            HitResult hit = level().clip(new ClipContext(from, from.add(reach), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, this));
+            if (hit.getType() != HitResult.Type.MISS && hit.getLocation().distanceToSqr(from) < reachLeft) {
+                reachLeft = hit.getLocation().distanceToSqr(from);
+                blockHit = hit.getLocation();
+            }
+        }
+        Vec3 end = blockHit != null ? nose.add(dir.scale(Math.sqrt(reachLeft))) : nose.add(reach);
+        // Entities: each box grown by the zone radius; a nose already inside one counts as a hit there.
+        Entity target = null;
+        Vec3 targetHit = null;
+        for (Entity e : level().getEntities(this, new AABB(nose, end).inflate(1), this::fuzeTarget)) {
+            AABB box = e.getBoundingBox().inflate(Payload.NOSE_RADIUS);
+            Vec3 at = box.contains(nose) ? nose : box.clip(nose, end).orElse(null);
+            if (at != null && (targetHit == null || at.distanceToSqr(nose) < targetHit.distanceToSqr(nose))) {
+                target = e;
+                targetHit = at;
+            }
+        }
+        if (target != null) detonate(target, targetHit);
+        else if (blockHit != null) detonate(null, blockHit);
     }
 
     private boolean fuzeTarget(Entity e) {
@@ -298,16 +329,23 @@ public final class FpvDrone extends DroneEntity {
             createCustomExplosion().source(bomb).attacker(controller)
                     .damage(data.explosionDamage).radius(data.explosionRadius).position(at).explode();
         }
-        // Spent: SBW's destroy() must not explode it a second time.
+        // Spent: neither SBW's destroy() nor its signal-loss blast may explode again.
+        detonated = true;
         clearPayload();
         hurt(ModDamageTypes.causeCustomExplosionDamage(level().registryAccess(), this, controller), 10000);
     }
 
-    /** An unarmed warhead is a dud: SBW would otherwise detonate it whenever the drone is destroyed. */
+    /** An unarmed warhead is a dud; this is the check SBW's destroy() uses to detonate it. */
     @Override
     public void destroy() {
-        if (kamikaze() && !isArmed()) clearPayload();
+        var data = CustomData.DRONE_ATTACHMENT.get(getItemId(getCurrentItem()));
+        if (data != null && data.isKamikaze && !live()) clearPayload();
         super.destroy();
+    }
+
+    @Override
+    public double getMaxControlDistance() {
+        return detonated ? Double.MAX_VALUE : super.getMaxControlDistance();
     }
 
     private void clearPayload() {
@@ -324,6 +362,7 @@ public final class FpvDrone extends DroneEntity {
         super.addAdditionalSaveData(tag);
         tag.putBoolean("FpvAcro", isAcro());
         tag.putBoolean("FpvArmed", isArmed());
+        tag.putString("FpvArmedFor", armedFor);
         tag.putDouble("FpvBatteryUsedAh", battery.usedAh);
         tag.putFloat("FpvThrottle", throttle());
         tag.putFloat("FpvVolts", volts());
@@ -334,9 +373,12 @@ public final class FpvDrone extends DroneEntity {
         super.readAdditionalSaveData(tag);
         entityData.set(ACRO, tag.getBoolean("FpvAcro"));
         entityData.set(ARMED, tag.getBoolean("FpvArmed"));
+        armedFor = tag.getString("FpvArmedFor");
         entityData.set(THROTTLE, tag.getFloat("FpvThrottle"));
         battery.usedAh = tag.getDouble("FpvBatteryUsedAh");
         battery.volts = battery.openCircuitVolts();
+        entityData.set(VOLTS, (float) battery.volts);
+        entityData.set(CHARGE, (float) battery.charge());
         // Sync the loaded heading with the spawn packet, not one tick later.
         model.level(Math.toRadians(getYRot()));
         attitudeReady = true;
