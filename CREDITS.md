@@ -103,3 +103,7 @@ Signal Jammer source: [AspectStudios, Signal Jammer {Draft}](https://sketchfab.c
 ## Fabric FPV flight — 2026-09-24
 
 No assets were added. The flight HUD is plain text drawn with the vanilla font; flight code is original AGPL-3.0 work.
+
+## Fabric FPV payload, battery and fuze — 2026-09-24
+
+No assets were added. HUD additions are vanilla-font text; payload, battery and fuze code is original AGPL-3.0 work. Payload models and the explosion come from the installed Superb Warfare jar and are not redistributed.

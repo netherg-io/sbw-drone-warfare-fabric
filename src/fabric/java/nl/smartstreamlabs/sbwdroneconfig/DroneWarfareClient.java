@@ -1,6 +1,7 @@
 package nl.smartstreamlabs.sbwdroneconfig;
 
 import com.atsuishio.superbwarfare.client.renderer.entity.DroneRenderer;
+import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
 import com.atsuishio.superbwarfare.item.misc.MonitorItem;
 import com.atsuishio.superbwarfare.tools.EntityFindUtil;
 import com.atsuishio.superbwarfare.tools.NBTTool;
@@ -22,9 +23,15 @@ public final class DroneWarfareClient implements ClientModInitializer {
             Minecraft mc = Minecraft.getInstance();
             FpvDrone drone = viewedDrone();
             if (drone == null || mc.options.hideGui) return;
-            String text = String.format("%s  THR %d%%  %.1f m/s", drone.isAcro() ? "ACRO" : "ANGLE",
-                    Math.round(drone.throttle() * 100), drone.getDeltaMovement().length() * 20);
-            graphics.drawCenteredString(mc.font, text, graphics.guiWidth() / 2, graphics.guiHeight() - 48, 0x55FF55);
+            String text = String.format("%s  THR %d%%  %.1f m/s  %.1fV %d%%", drone.isAcro() ? "ACRO" : "ANGLE",
+                    Math.round(drone.throttle() * 100), drone.getDeltaMovement().length() * 20,
+                    drone.volts(), Math.round(drone.charge() * 100));
+            if (drone.payloadKg() > 0) {
+                text += String.format("  %.2f kg", drone.payloadKg());
+                if (drone.getEntityData().get(DroneEntity.IS_KAMIKAZE)) text += drone.isArmed() ? "  ARMED" : "  SAFE";
+            }
+            boolean low = drone.volts() < Battery.LOW_VOLTS || drone.charge() <= 0;
+            graphics.drawCenteredString(mc.font, text, graphics.guiWidth() / 2, graphics.guiHeight() - 48, low ? 0xFF5555 : 0x55FF55);
         });
     }
 
