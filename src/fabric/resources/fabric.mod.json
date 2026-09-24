@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "id": "sbwdroneconfig",
+  "version": "${version}",
+  "name": "SBW Drone Warfare — Fabric",
+  "description": "Fabric port foundation; advanced flight systems are not yet ported.",
+  "license": "AGPL-3.0-only",
+  "authors": [
+    "Team SmartStreamLabs",
+    "Fabric port: netherg-io"
+  ],
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "nl.smartstreamlabs.sbwdroneconfig.DroneWarfare"
+    ],
+    "client": [
+      "nl.smartstreamlabs.sbwdroneconfig.DroneWarfareClient"
+    ]
+  },
+  "depends": {
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabricloader": ">=0.19.3",
+    "fabric-api": "*",
+    "superbwarfare": "0.8.9.1-mc1.21.1",
+    "geckolib": "*"
+  }
+}
