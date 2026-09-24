@@ -13,6 +13,8 @@ Status:
   by SmartStreamLabs or the asset is replaced with our own.
 - **exclude**: license incompatible with a public release (non-commercial, etc.). Not copied.
 
+Replacement plan for every *replace before release* file and the Signal Jammer source check: [docs/ASSET-PLAN.md](docs/ASSET-PLAN.md).
+
 ## Summary
 
 96 files under `assets/`, plus 33 root/data resources.
