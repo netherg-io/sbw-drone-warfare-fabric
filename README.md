@@ -52,7 +52,7 @@ python3 scripts/check-artifact.py
 ./gradlew --no-daemon runGametest   # headless server scenarios (src/gametest); CI prints their FPV- lines
 ```
 
-Releases: a tag `bfN` on `fabric-1.21.1` runs `.github/workflows/release.yml`, which publishes `sbw-drone-warfare-fabric-<version>-bfN.jar`, its sources jar and `SHA256SUMS` as a GitHub Release; the tag is the corresponding source. Blockfield pins a release with `scripts/bump-fork.sh sbwdrone bfN` in blockfield-modpack.
+Releases: a tag `bfN` on `fabric-1.21.1` (pushed, or created by running the Release workflow manually on `fabric-1.21.1` with input `tag`) runs `.github/workflows/release.yml`, which publishes `sbw-drone-warfare-fabric-<version>-bfN.jar`, its sources jar and `SHA256SUMS` as a GitHub Release; the tag is the corresponding source. Blockfield pins a release with `scripts/bump-fork.sh sbwdrone bfN` in blockfield-modpack.
 
 The wrapper downloads Gradle 8.14.2 with a pinned checksum. Loom 1.11.8 uses Mojang + Parchment 2024.11.17 mappings. Superb Warfare [bf18](https://github.com/netherg-io/superbwarfare-fabric/releases/tag/bf18) is downloaded from its public release and SHA-256 verified by Gradle. CI builds without repository secrets and uploads both jar and sources.
 
