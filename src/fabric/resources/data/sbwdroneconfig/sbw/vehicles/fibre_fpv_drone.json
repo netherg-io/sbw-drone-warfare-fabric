@@ -1,5 +1,5 @@
 {
-  "MaxHealth": 5,
+  "MaxHealth": 1,
   "MaxEnergy": 0,
   "Mass": 0.0005,
   "VehicleContainerType": "Empty",

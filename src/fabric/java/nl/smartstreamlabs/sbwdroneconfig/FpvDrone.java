@@ -335,14 +335,21 @@ public final class FpvDrone extends DroneEntity {
     /**
      * Contact fuze. The nose zone is swept along this tick's intended motion, so neither a thin block
      * nor a player is skipped at speed; firing needs the nose to lead (see {@link Payload#noseStrikes}).
+     * The sweep runs before the move: SBW's collision damage in super.move would otherwise break the
+     * 1 HP frame first, and the warhead would go off through SBW's destroy() at the frame centre.
      */
     @Override
     public void move(MoverType type, Vec3 movement) {
-        Vec3 nose = type == MoverType.SELF && !level().isClientSide() && live() && kamikaze() ? nosePosition() : null;
+        if (type == MoverType.SELF && !level().isClientSide() && live() && kamikaze() && fuze(movement)) return;
         super.move(type, movement);
-        if (nose == null || detonated || !isAlive() || movement.lengthSqr() < 1e-8) return;
+    }
+
+    /** Sweeps the nose zone along {@code movement}; detonates and returns true on a strike. */
+    private boolean fuze(Vec3 movement) {
+        if (detonated || !isAlive() || movement.lengthSqr() < 1e-8) return false;
+        Vec3 nose = nosePosition();
         Vector3d axis = model.attitude.transform(new Vector3d(0, 0, 1));
-        if (!Payload.noseStrikes(axis, new Vector3d(movement.x, movement.y, movement.z).mul(20))) return;
+        if (!Payload.noseStrikes(axis, new Vector3d(movement.x, movement.y, movement.z).mul(20))) return false;
 
         Vec3 dir = movement.normalize();
         Vec3 reach = movement.add(dir.scale(Payload.NOSE_RADIUS));
@@ -374,6 +381,8 @@ public final class FpvDrone extends DroneEntity {
         }
         if (target != null) detonate(target, targetHit);
         else if (blockHit != null) detonate(null, blockHit);
+        else return false;
+        return true;
     }
 
     private boolean fuzeTarget(Entity e) {
@@ -382,17 +391,20 @@ public final class FpvDrone extends DroneEntity {
                 || e.getType().is(ModTags.EntityTypes.DECOY));
     }
 
-    /** SBW's kamikaze hit and explosion (attachment data), at the strike point, then the drone is destroyed. */
+    /**
+     * SBW's kamikaze hit and explosion (attachment data), at the strike point, then the drone is destroyed.
+     * The drone itself is the direct source and the operator the attacker, so servers can tell a drone
+     * strike from a thrown or fired warhead of the same type.
+     */
     private void detonate(@Nullable Entity target, Vec3 at) {
         var data = CustomData.DRONE_ATTACHMENT.get(getItemId(getCurrentItem()));
-        Entity bomb = EntityType.byString(entityData.get(DISPLAY_ENTITY)).map(t -> t.create(level())).orElse(null);
         Player controller = getController();
         if (data != null) {
             if (target != null) {
-                DamageHandler.doDamage(target, ModDamageTypes.causeCustomExplosionDamage(level().registryAccess(), bomb, controller), data.hitDamage);
+                DamageHandler.doDamage(target, ModDamageTypes.causeCustomExplosionDamage(level().registryAccess(), this, controller), data.hitDamage);
                 target.invulnerableTime = 0;
             }
-            createCustomExplosion().source(bomb).attacker(controller)
+            createCustomExplosion().source(this).attacker(controller)
                     .damage(data.explosionDamage).radius(data.explosionRadius).position(at).explode();
         }
         // Spent: neither SBW's destroy() nor its signal-loss blast may explode again.
