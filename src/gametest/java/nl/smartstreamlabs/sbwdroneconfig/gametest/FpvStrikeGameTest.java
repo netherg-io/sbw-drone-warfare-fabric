@@ -38,7 +38,12 @@ public final class FpvStrikeGameTest implements FabricGameTest {
     static final double STRIKE_MS = 12;
     private static final Map<UUID, List<String>> HITS = new ConcurrentHashMap<>();
 
+    private static final Map<UUID, Vec3> GONE = new ConcurrentHashMap<>();
+
     static {
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents.ENTITY_UNLOAD.register((entity, level) -> {
+            if (entity instanceof FpvDrone) GONE.put(entity.getUUID(), entity.position());
+        });
         // Every attempt, fatal ones included (AFTER_DAMAGE skips those).
         ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             HITS.computeIfAbsent(entity.getUUID(), id -> new ArrayList<>()).add(describe(source) + " " + String.format("%.2f", amount));
@@ -94,7 +99,8 @@ public final class FpvStrikeGameTest implements FabricGameTest {
         drone.setDeltaMovement(0, 0, STRIKE_MS / 20);
         helper.runAfterDelay(30, () -> {
             List<String> hits = HITS.getOrDefault(zombie.getUUID(), List.of());
-            LOG.info("FPV-STRIKE zombie hits (fuze hit first, then blast): {} zombie alive={}", hits, zombie.isAlive());
+            LOG.info("FPV-STRIKE zombie hits (fuze hit first, then blast): {} zombie alive={} drone gone at {} zombie at {}",
+                    hits, zombie.isAlive(), helper.relativeVec(GONE.getOrDefault(drone.getUUID(), Vec3.ZERO)), helper.relativeVec(zombie.position()));
             helper.assertTrue(drone.isRemoved(), "the strike must spend the drone");
             helper.assertTrue(!hits.isEmpty(), "the strike must hurt the zombie");
             helper.assertTrue(hits.stream().allMatch(h -> !h.startsWith("projectile_explosion") && !h.contains("custom")
