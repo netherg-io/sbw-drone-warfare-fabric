@@ -96,6 +96,10 @@ public final class FpvDrone extends DroneEntity {
     private String armedFor = "";
     private boolean detonated;
 
+    // Client: watched drones show the synced attitude smoothed over bunched updates; the pilot's own view is not.
+    private final AttitudeLerp shownAttitude = new AttitudeLerp();
+    private @Nullable Quaternionf clientAttitude;
+
     /** Entity id of the FPV drone the local player views through a monitor; set by the client each tick. */
     static volatile int viewedId = -1;
 
@@ -159,7 +163,7 @@ public final class FpvDrone extends DroneEntity {
         double sbwGravity = computed().getGravity();
         if (level().isClientSide()) {
             setDeltaMovement(getDeltaMovement().add(0, sbwGravity, 0));
-            applyAngles(entityData.get(ATTITUDE));
+            applyAngles(attitude());
             return;
         }
         if (!attitudeReady) {
@@ -251,6 +255,9 @@ public final class FpvDrone extends DroneEntity {
 
     @Override
     public void baseTick() {
+        if (level().isClientSide()) {
+            clientAttitude = getId() == viewedId ? shownAttitude.snap(entityData.get(ATTITUDE)) : shownAttitude.tick();
+        }
         camYawO = camYaw;
         camRollO = camRoll;
         pitchPrev = pitch;
@@ -265,10 +272,24 @@ public final class FpvDrone extends DroneEntity {
         }
         super.baseTick();
         // DroneEntity.baseTick decays roll after travel(); keep the model's attitude instead.
-        applyAngles(entityData.get(ATTITUDE));
+        applyAngles(attitude());
         // SBW's renderer draws getBodyPitch(t) = lerp(0.6 t, pitchO, bodyPitch), which jumps at every tick.
         setPitchO(pitchPrev);
         setBodyXRot(QuadFlightModel.sbwBodyPitch(pitchPrev, pitch));
+    }
+
+    /** The attitude to show: the model's on the server, the smoothed synced one on a client. */
+    private Quaternionf attitude() {
+        return level().isClientSide() && clientAttitude != null ? clientAttitude : entityData.get(ATTITUDE);
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        // Also called while super() constructs the entity, before this class's fields exist.
+        if (shownAttitude != null && ATTITUDE.equals(key) && level() != null && level().isClientSide()) {
+            shownAttitude.receive(entityData.get(ATTITUDE));
+        }
     }
 
     private void applyAngles(Quaternionf attitude) {
