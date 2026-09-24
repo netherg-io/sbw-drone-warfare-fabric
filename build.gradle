@@ -1,128 +1,47 @@
 plugins {
-    id 'eclipse'
-    id 'idea'
-    id 'net.minecraftforge.gradle' version '[6.0.16,6.2)'
-    id 'org.spongepowered.mixin' version '0.7.+'
-    id 'org.parchmentmc.librarian.forgegradle' version '1.+'
+    id 'fabric-loom' version '1.11.8'
 }
-
-version = '1.0.1'
+version = '0.1.0+mc1.21.1'
 group = 'nl.smartstreamlabs.sbwdroneconfig'
-def sbwSourceProjectDir = [
-        file('C:/Users/Gebruiker/Desktop/SuperbWarfare-0.8.8'),
-        file('C:/Users/Gebruiker/Desktop/drone update/SuperbWarfare-0.8.8')
-].find { it.exists() } ?: file('C:/Users/Gebruiker/Desktop/SuperbWarfare-0.8.8')
-def sbwCompileOnlyInputs = [
-        new File(sbwSourceProjectDir, 'build/classes/java/main'),
-        new File(sbwSourceProjectDir, 'build/classes/kotlin/main'),
-        new File(sbwSourceProjectDir, 'build/resources/main')
-].findAll { it.exists() }
-def sbwFallbackJar = [
-        file('C:/Users/Gebruiker/curseforge/minecraft/Instances/Creative Server/mods/superbwarfare-1.20.1-0.8.8-final-6a6b54795.jar'),
-        file('C:/Users/Gebruiker/AppData/Roaming/ModrinthApp/profiles/sbw/mods/superbwarfare-1.20.1-0.8.8-final-6a6b54795.jar'),
-        file('C:/Users/Gebruiker/AppData/Roaming/ModrinthApp/profiles/1.20.1/mods/superbwarfare-1.20.1-0.8.8-final-6a6b54795.jar')
-].find { it.exists() }
-
-base {
-    archivesName = 'sbw-drone-warfare'
-}
-
+base { archivesName = 'sbw-drone-warfare-fabric' }
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(17)
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
     withSourcesJar()
 }
-
-minecraft {
-    mappings channel: 'parchment', version: '2023.08.13-1.20.1'
-    copyIdeResources = true
-
-    runs {
-        configureEach {
-            workingDirectory project.file('run')
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'info'
-            mods {
-                sbwdroneconfig {
-                    source sourceSets.main
-                }
-            }
-        }
-
-        client {
-            property 'forge.enabledGameTestNamespaces', 'sbwdroneconfig'
-        }
-
-        server {
-            property 'forge.enabledGameTestNamespaces', 'sbwdroneconfig'
-        }
-    }
-}
-
 repositories {
-    maven {
-        url = 'https://maven.minecraftforge.net'
-    }
-    maven {
-        url = 'https://repo.spongepowered.org/repository/maven-public/'
-    }
-    maven {
-        name = 'GeckoLib'
-        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
-    }
     mavenCentral()
+    maven { url = 'https://maven.parchmentmc.org' }
+    maven {
+        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content { includeGroupByRegex 'software\\.bernie.*' }
+    }
+    ivy {
+        url = 'https://github.com/netherg-io/superbwarfare-fabric/releases/download'
+        patternLayout { artifact '[revision]/[artifact].[ext]' }
+        metadataSources { artifact() }
+        content { includeGroup 'netherg-io' }
+    }
 }
-
 dependencies {
-    minecraft 'net.minecraftforge:forge:1.20.1-47.2.0'
-    compileOnly 'org.spongepowered:mixin:0.8.5'
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-    compileOnly fg.deobf('software.bernie.geckolib:geckolib-forge-1.20.1:4.4.6')
-    runtimeOnly fg.deobf('software.bernie.geckolib:geckolib-forge-1.20.1:4.4.6')
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
-    if (!sbwCompileOnlyInputs.isEmpty()) {
-        compileOnly files(sbwCompileOnlyInputs)
-    } else if (sbwFallbackJar != null) {
-        compileOnly files(sbwFallbackJar)
+    minecraft 'com.mojang:minecraft:1.21.1'
+    mappings loom.layered {
+        officialMojangMappings()
+        parchment 'org.parchmentmc.data:parchment-1.21.1:2024.11.17@zip'
     }
+    modImplementation 'net.fabricmc:fabric-loader:0.19.3'
+    modImplementation 'net.fabricmc.fabric-api:fabric-api:0.116.15+1.21.1'
+    modImplementation 'netherg-io:superbwarfare-0.8.9.1-mc1.21.1-bf18:bf18'
+    modImplementation 'software.bernie.geckolib:geckolib-fabric-1.21.1:4.7.5'
+    modImplementation 'net.fabricmc:fabric-language-kotlin:1.13.7+kotlin.2.2.21'
 }
-
-mixin {
-    add sourceSets.main, 'sbwdroneconfig.refmap.json'
-    config 'sbwdroneconfig.mixins.json'
+// Unported Forge sources and unaudited assets stay outside the distributed artifact.
+sourceSets.main {
+    java.setSrcDirs(['src/fabric/java'])
+    resources.setSrcDirs(['src/fabric/resources'])
 }
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
+sourceSets.test.java.setSrcDirs(['src/fabricTest/java'])
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') { expand version: project.version }
 }
-
-tasks.named('test', Test).configure {
-    useJUnitPlatform()
-}
-
-tasks.named('processResources', ProcessResources).configure {
-    var replaceProperties = [
-            minecraft_version      : '1.20.1',
-            minecraft_version_range: '[1.20.1,1.21)',
-            forge_version          : '47.2.0',
-            forge_version_range    : '[47,)',
-            loader_version_range   : '[47,)',
-            mod_id                 : 'sbwdroneconfig',
-            mod_name               : 'SBW Drone Warfare',
-            mod_license            : 'GNU GENERAL PUBLIC LICENSE',
-            mod_version            : project.version,
-            mod_authors            : 'Team SmartStreamLabs',
-            mod_description        : '''SBW Drone Warfare is a tactical drone expansion for Superb Warfare. It adds controllable FPV and LUCAS drones, drone inventories and modules, fiber optic links, jammers, radar tools, anti-drone nets, extraction crates, fuel production, battery support, weather camera effects, thermal vision, screenshots, configurable audio, spotlight systems, and a full in-game config GUI.'''
-    ]
-    inputs.properties replaceProperties
-    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
-        expand replaceProperties + [project: project]
-    }
-}
-
-tasks.named('jar', Jar).configure {
-    manifest {
-        attributes(
-                'MixinConfigs': 'sbwdroneconfig.mixins.json'
-        )
-    }
-}
+jar { from('LICENSE', 'NOTICE', 'CREDITS.md') }

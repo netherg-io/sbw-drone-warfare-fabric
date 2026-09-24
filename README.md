@@ -1,58 +1,38 @@
 # SBW Drone Warfare — Fabric 1.21.1 port
 
-Fabric 1.21.1 port of [[SBW] Drone Warfare](https://github.com/SmartStreamLabs/-SBW-Drone-Warfare)
-by Team SmartStreamLabs, as an addon for
-[superbwarfare-fabric](https://github.com/netherg-io/superbwarfare-fabric) (Superb Warfare ported
-to Fabric). Maintained by [netherg-io](https://github.com/netherg-io) for the Blockfield server.
-Not affiliated with SmartStreamLabs or the Superb Warfare team.
-
-Tracking issue: netherg-io/blockfield-releases#4.
+Public Fabric port of [SBW Drone Warfare](https://github.com/SmartStreamLabs/-SBW-Drone-Warfare), by Team SmartStreamLabs, maintained by netherg-io. Not affiliated with the original authors or Mojang.
 
 ## Status
 
-**S0: provenance only, no Fabric code yet.** This branch still contains the upstream Forge 1.20.1
-sources of 1.0.1 unchanged. Branches:
+S1 prototype: a Fabric registry, deployable FPV entity/item and client renderer. It inherits Superb Warfare flight and session control. **Angle/Acro, addon battery, EW and fiber are not ported. This is not a production replacement.** Tracking: [S1](https://github.com/netherg-io/sbw-drone-warfare-fabric/issues/1), [full port](https://github.com/netherg-io/blockfield-releases/issues/4).
 
-- `main` mirrors upstream (`30e7b655e85301f7c3607d2279e8aad268dfa91d`, 1.0.1).
-- `fabric-1.21.1` (default) carries the port.
+The `main` branch preserves upstream 1.0.1 (`30e7b655`). Only `src/fabric` is built into the Fabric jar; the original Forge sources and unverified assets under `src/main` are excluded. No later NC-licensed assets were imported.
 
-Provenance and modifications: [NOTICE](./NOTICE). Asset sources and license status:
-[CREDITS.md](./CREDITS.md). Upstream README: [README-upstream.md](./README-upstream.md).
+## Build
 
-## Goal
-
-First public release: FPV drone with monitor, operator sessions and camera, Angle/Acro flight
-modes, payload mass, battery, radio link and EW jamming, fiber-optic control, contact detonation,
-engine sound. The operator stays physically in the world and vulnerable; control and camera always
-terminate cleanly.
-
-## Build plan
-
-1. **S0** (this state): fork, license, NOTICE, asset audit.
-2. **S1**: Fabric Loom 1.21.1 build (Java 21, Mojang mappings + Parchment, same toolchain as
-   superbwarfare-fabric), depending on a published superbwarfare-fabric release instead of local
-   SBW paths; choose the source base (1.0.1 here vs. the later NeoForge 1.21.1 tree in
-   [SBW-Drone-Warfare-Updated-8-28-2026](https://github.com/SmartStreamLabs/SBW-Drone-Warfare-Updated-8-28-2026)).
-3. **S2+**: port gameplay systems, replace assets marked "replace before release" in CREDITS.md.
-
-Planned build, once code exists:
+Java 21 and Python 3; no private source, Maven credentials or local dependency jars:
 
 ```sh
-git clone -b fabric-1.21.1 https://github.com/netherg-io/sbw-drone-warfare-fabric.git
-cd sbw-drone-warfare-fabric
-./gradlew build --no-daemon   # JDK 21
+./gradlew --no-daemon build
+python3 scripts/check-artifact.py
 ```
 
-No private repositories, tokens or local jars will be required.
+The wrapper downloads Gradle 8.14.2 with a pinned checksum. Loom 1.11.8 uses Mojang + Parchment 2024.11.17 mappings. Superb Warfare [bf18](https://github.com/netherg-io/superbwarfare-fabric/releases/tag/bf18) is downloaded from its public release and SHA-256 verified by Gradle. CI builds without repository secrets and uploads both jar and sources.
+
+## Test installation
+
+Use Minecraft 1.21.1, Fabric Loader 0.19.3, Fabric API 0.116.15+1.21.1, Superb Warfare bf18 and its normal runtime dependencies, including GeckoLib 4.7.5 and Fabric Language Kotlin. Install the built jar on the dedicated server and both clients.
+
+Spawn `sbwdroneconfig:cubed_fpv_drone` or give its item. The prototype references the installed SBW drone model/texture/animation; its provisional inventory icon uses vanilla iron ingot. In Blockfield, adventure-mode loadout/deployment integration is not switched over yet; test item placement in creative mode. Existing SBW combat and scout drones are unchanged.
+
+Smoke scenario: start dedicated server, connect two clients, summon FPV, check model/texture from both clients, give and place an FPV item, check both see the second entity. 2026-09-24: passed on Minecraft 1.21.1/Fabric with SBW bf18 and Blockfield 1.25.0; the new entity renders on both clients and creative item placement creates it. This does not accept the advanced-flight requirements.
+
+## Provenance and remaining port work
+
+[NOTICE](NOTICE), [asset credits](CREDITS.md), [source/binary audit](docs/PROVENANCE.md), [class/system map](docs/CLASS-MAP.md). The candidate source labelled 1.21.1 actually builds Forge 1.20.1; its exact relationship to the published NeoForge 1.0.6 binary is not established. Do not claim the published binary's bug fixes are present in this prototype.
+
+Next: adapt addon systems against the pinned source and existing SBW lifecycle, replace unverifiable assets, test control/physics/radio/cleanup on two clients, then integrate stock/reward rules and ship through the versioned Blockfield modpack. Do not deploy the S1 prototype to production.
 
 ## License
 
-GNU Affero General Public License v3.0, see [LICENSE](./LICENSE), inherited from upstream.
-Port changes by netherg-io are released under the same license.
-
-**AGPL-3.0 §13 (network use):** servers running this mod, including the Blockfield server, offer
-players the Corresponding Source through this repository: the `fabric-1.21.1` branch and the tag
-matching each released jar.
-
-Third-party assets keep their own licenses (see CREDITS.md). Assets under non-commercial licenses,
-such as the Geranium-2 model (CC BY-NC-SA 4.0), are not included.
+AGPL-3.0-only, inherited from upstream; modifications by netherg-io. Source and modification history are public. Deployed jars must have a corresponding public tag and release with checksums and source instructions. Third-party assets retain their licenses; see CREDITS.md.

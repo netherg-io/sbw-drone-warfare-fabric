@@ -93,3 +93,9 @@ declare these models:
 | `cacc.png` (mod logo) | unknown | unknown | replace before release |
 | `data/**` (recipes, loot tables, tags, vehicle data; 29 JSON files) | SmartStreamLabs | AGPL-3.0 | port |
 | `pack.mcmeta`, `sbwdroneconfig.mixins.json`, `META-INF/mods.toml` | SmartStreamLabs | AGPL-3.0 | port (Fabric equivalents replace Forge metadata) |
+
+## Fabric prototype — 2026-09-24
+
+No files from `src/main/resources` are included in the Fabric artifact. The renderer references the installed LGPL-3.0-only `superbwarfare-fabric` drone model/texture/animation and engine sound, without redistributing them; the prototype item icon references vanilla iron ingot.
+
+Signal Jammer source: [AspectStudios, Signal Jammer {Draft}](https://sketchfab.com/3d-models/signal-jammer-draft-b567fbe6f16a43969fc204ee0f90b06d), CC Attribution. Model title and author match the OBJ header; unverified texture provenance is still not cleared. Neither is included.
