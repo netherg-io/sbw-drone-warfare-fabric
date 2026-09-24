@@ -2,17 +2,17 @@
 
 The selected reference remains upstream 1.0.1, commit `30e7b655e85301f7c3607d2279e8aad268dfa91d`, preserved in this fork's history. Fabric sources live in `src/fabric`; unported Forge sources and unverified assets are excluded from the artifact. The first prototype reuses the installed Superb Warfare entity/renderer/resources; it does not claim to port all 1.0.6 behavior.
 
-## Why the later folder is not a verified NeoForge source release
+## Located NeoForge 1.0.6 source tree
 
 - Published NeoForge 1.0.6: https://modrinth.com/mod/sbw-tactical-drone/version/NeM3aBVy (2026-08-28 14:49 UTC).
 - Binary: https://cdn.modrinth.com/data/WG6tgfJf/versions/NeM3aBVy/SBW-Drone-Warfare-1.21.1-NeoForge-1.0.6.jar
 - SHA-256: `411c61c05450249bbde15f0153a74ea075336ae4a2f459b19b3c01e4c995801c`.
-- Candidate source: https://github.com/SmartStreamLabs/SBW-Drone-Warfare-Updated-8-28-2026/tree/9eb3b598083838facc16022738aa06ad48fbfb04 (16:06 UTC).
-- Its `SBW-Drone-Warfare-1.21.1/build.gradle` declares version 1.0.6, **Forge 1.20.1**, Java 17 and local Windows SBW paths. `AddonNetwork` imports `net.minecraftforge.network.simple.SimpleChannel`.
-- The distributed jar instead contains `META-INF/neoforge.mods.toml`, Minecraft 1.21.1 and NeoForge >=21.1.228.
-- Of matching resource paths, 152 files match byte for byte and 55 differ. Date/version agreement and partial resource matches do not establish the exact source of the released classes. No source archive or commit identifier is embedded in the jar; the candidate repository exposes only main and no tags.
+- Author's source: https://github.com/SmartStreamLabs/SBW-Drone-Warfare-Updated-8-28-2026/tree/9eb3b598083838facc16022738aa06ad48fbfb04/SBW-Drone-Range-1.20.1 (16:06 UTC).
+- **Folder labels are misleading.** `SBW-Drone-Range-1.20.1` uses NeoForge ModDev, Java 21, Minecraft 1.21.1, NeoForge 21.1.228 and mod_version 1.0.6. The sibling `SBW-Drone-Warfare-1.21.1` is actually the Forge 1.20.1 tree. The earlier audit inspected the wrong sibling and incorrectly concluded that no NeoForge source existed.
+- All 154 assets in the published jar match this NeoForge source tree: 145 byte-for-byte; the remaining 9 differ only in CRLF/LF line endings. All 258 top-level binary class paths have a corresponding Java source path, with no missing or extra paths.
+- This establishes the matching author-published source candidate, not a reproducible binary build. The jar embeds no source commit and the repository has no release tag. Direct author confirmation / bytecode-equivalent rebuild remains outstanding; do not claim that either has happened.
 
-Author confirmation or a matching source tree remains outstanding. Do not call this candidate the verified NeoForge 1.0.6 source. No later assets were imported.
+The current Fabric prototype still uses the recorded 1.0.1 baseline plus Fabric SBW. No code or assets from the later tree have been imported yet.
 
 ## Published Fabric dependency
 

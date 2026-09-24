@@ -16,8 +16,9 @@ the `fabric-1.21.1` branch.
 Later upstream source (not yet merged here):
   https://github.com/SmartStreamLabs/SBW-Drone-Warfare-Updated-8-28-2026
   commit 9eb3b598083838facc16022738aa06ad48fbfb04 (2026-08-28), AGPL-3.0,
-  contains two trees labelled 1.20.1 and 1.21.1. Both checked build files
-  target Forge 1.20.1; neither establishes the released NeoForge source.
+  NeoForge 1.21.1 / version 1.0.6 sources are in SBW-Drone-Range-1.20.1.
+  All 154 released assets match (9 after line-ending normalization), as do
+  all 258 top-level class paths. See docs/PROVENANCE.md for verification limits.
 
 Modifications
 -------------
