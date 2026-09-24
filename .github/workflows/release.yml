@@ -1,0 +1,37 @@
+# Tag bfN on fabric-1.21.1: build, then a GitHub Release with the jar `<name>-bfN.jar`, its sources
+# jar and SHA256SUMS. Every jar deployed to Blockfield comes from such a release (AGPL-3.0 §13 source
+# offer: the tag is the corresponding source). Blockfield pins it with
+# `scripts/bump-fork.sh sbwdrone bfN` in blockfield-modpack.
+name: Release
+on:
+  push:
+    tags: ['bf[0-9]*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew --no-daemon build
+      - run: python3 scripts/check-artifact.py
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          cd build/libs
+          jar=$(ls *.jar | grep -v -e '-sources\.jar$')
+          [ "$(printf '%s\n' "$jar" | wc -l)" -eq 1 ] || { echo "expected one jar, got: $jar"; exit 1; }
+          base=${jar%.jar}
+          mv "$jar" "$base-$GITHUB_REF_NAME.jar"
+          mv "$base-sources.jar" "$base-$GITHUB_REF_NAME-sources.jar"
+          sha256sum *.jar > SHA256SUMS
+          cat SHA256SUMS
+          notes="Corresponding source (AGPL-3.0-only): https://github.com/$GITHUB_REPOSITORY/tree/$GITHUB_REF_NAME, commit $GITHUB_SHA. Build from a clean checkout with \`./gradlew build\` (Java 21, see README); the sources jar is attached too. Third-party assets: CREDITS.md."
+          gh release create "$GITHUB_REF_NAME" *.jar SHA256SUMS --title "$base-$GITHUB_REF_NAME" --notes "$notes"
