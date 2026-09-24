@@ -33,7 +33,10 @@ dependencies {
     modImplementation 'netherg-io:superbwarfare-0.8.9.1-mc1.21.1-bf18:bf18'
     modImplementation 'software.bernie.geckolib:geckolib-fabric-1.21.1:4.7.5'
     modImplementation 'net.fabricmc:fabric-language-kotlin:1.13.7+kotlin.2.2.21'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.4'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.4'
 }
+test { useJUnitPlatform() }
 // Unported Forge sources and unaudited assets stay outside the distributed artifact.
 sourceSets.main {
     java.setSrcDirs(['src/fabric/java'])

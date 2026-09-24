@@ -3,7 +3,7 @@
   "id": "sbwdroneconfig",
   "version": "${version}",
   "name": "SBW Drone Warfare — Fabric",
-  "description": "Fabric port foundation; advanced flight systems are not yet ported.",
+  "description": "Fabric port: FPV drone with server-side Angle/Acro flight. Battery, EW and fiber are not yet ported.",
   "license": "AGPL-3.0-only",
   "authors": [
     "Team SmartStreamLabs",
@@ -18,6 +18,9 @@
       "nl.smartstreamlabs.sbwdroneconfig.DroneWarfareClient"
     ]
   },
+  "mixins": [
+    "sbwdroneconfig.mixins.json"
+  ],
   "depends": {
     "minecraft": "~1.21.1",
     "java": ">=21",
