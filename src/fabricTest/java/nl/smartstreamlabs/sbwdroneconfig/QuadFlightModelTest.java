@@ -130,4 +130,55 @@ class QuadFlightModelTest {
         model.attitude.set(q);
         assertEquals(Math.toRadians(30), model.heading(), 1e-6);
     }
+
+    @Test
+    void payloadRaisesHoverThrottleAndSlowsTurns() {
+        model.mass = MASS + Payload.massKg("superbwarfare:rpg_rocket_standard", 1);
+        run(40, HOVER_THROTTLE, 0, 0, 0, false);
+        assertTrue(velocity.y < -3, "bare-frame hover throttle must sink with a warhead: " + velocity.y);
+
+        velocity.zero();
+        assertEquals(HOVER_THROTTLE * 2.3 / 0.8, model.hoverThrottle(), 1e-9);
+        run(200, model.hoverThrottle(), 0, 0, 0, false);
+        assertEquals(0, velocity.length(), 1e-6);
+
+        run(3, model.hoverThrottle(), 1, 0, 0, false);
+        double loaded = pitchDeg();
+        model.level(0);
+        model.mass = MASS;
+        run(3, HOVER_THROTTLE, 1, 0, 0, false);
+        assertTrue(loaded < 0.6 * pitchDeg(), "loaded " + loaded + " vs bare " + pitchDeg());
+    }
+
+    @Test
+    void overweightCannotLiftOff() {
+        model.mass = MASS + Payload.massKg("superbwarfare:tm_62", 1);
+        assertTrue(model.hoverThrottle() > 1);
+        run(20, 1, 0, 0, 0, false);
+        assertTrue(velocity.y < 0);
+    }
+
+    @Test
+    void sagLowersAvailableThrust() {
+        model.thrustScale = 0.7;
+        assertEquals(HOVER_THROTTLE / 0.7, model.hoverThrottle(), 1e-9);
+        run(1, 1, 0, 0, 0, false);
+        for (double m : model.motors) assertEquals(0.7 * MOTOR_MAX, m, 1e-9);
+    }
+
+    @Test
+    void hoverPowerMatchesA5InchQuad() {
+        run(1, HOVER_THROTTLE, 0, 0, 0, false);
+        assertEquals(150, model.electricalPower(), 20);
+        run(1, 1, 0, 0, 0, false);
+        assertTrue(model.electricalPower() > 1000 && model.electricalPower() < 1600, "full " + model.electricalPower());
+    }
+
+    @Test
+    void sbwBodyPitchInterpolatesLinearly() {
+        float prev = 10, current = 25, body = sbwBodyPitch(prev, current);
+        for (float t = 0; t <= 1; t += 0.25f) {
+            assertEquals(prev + t * (current - prev), prev + 0.6f * t * (body - prev), 1e-4);
+        }
+    }
 }

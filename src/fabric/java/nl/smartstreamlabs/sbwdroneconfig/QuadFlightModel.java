@@ -15,17 +15,24 @@ public final class QuadFlightModel {
     public static final double DT = 0.05;
     public static final double G = 9.81;
 
-    // ponytail: one fixed airframe; payload mass and battery sag belong to the next stage.
+    /** Airframe with its battery, kg; {@link #mass} adds the payload. */
     public static final double MASS = 0.8;
     static final double MOTOR_OFFSET = 0.11 / Math.sqrt(2);
     static final double I_PITCH_ROLL = 0.003;
     static final double I_YAW = 0.005;
+    /** Rated thrust per motor, N, at {@link Battery#V_REF}. */
     public static final double MOTOR_MAX = MASS * G;
     static final double YAW_TORQUE_PER_NEWTON = 0.015;
     static final double DRAG = 0.025;
     // Rotor (induced) drag is linear in speed and is what stops a slow drift at hover.
     static final double ROTOR_DRAG = 0.1;
     public static final double HOVER_THROTTLE = MASS * G / (4 * MOTOR_MAX);
+
+    // Motor power from momentum theory: P = T^1.5 / sqrt(2 rho A) / efficiency, 5.1" props.
+    static final double AIR_DENSITY = 1.225;
+    static final double PROP_AREA = Math.PI * 0.065 * 0.065;
+    // Figure of merit x motor x ESC; puts a bare 0.8 kg hover near 150 W, as measured on real 5" quads.
+    static final double POWER_EFFICIENCY = 0.4;
 
     public static final double MAX_TILT = Math.toRadians(45);
     static final double ANGLE_GAIN = 8;
@@ -46,6 +53,10 @@ public final class QuadFlightModel {
     public final Quaterniond attitude = new Quaterniond();
     public final Vector3d rates = new Vector3d();
     public final double[] motors = new double[4];
+    /** Take-off mass, kg: airframe plus payload. */
+    public double mass = MASS;
+    /** Available motor thrust relative to its rating; the battery lowers it as its voltage sags. */
+    public double thrustScale = 1;
 
     /**
      * Advances one tick.
@@ -63,10 +74,12 @@ public final class QuadFlightModel {
                 ? new Vector3d(pitch * ACRO_RATE, -yaw * YAW_RATE, roll * ACRO_RATE)
                 : angleModeRates(pitch, roll, yaw);
 
+        // The flight controller's gains are tuned for the bare frame; a payload only adds inertia, so a loaded quad turns slower.
         double tx = I_PITCH_ROLL * RATE_GAIN * (want.x - rates.x) / DT;
         double ty = I_YAW * YAW_GAIN * (want.y - rates.y) / DT;
         double tz = I_PITCH_ROLL * RATE_GAIN * (want.z - rates.z) / DT;
-        mix(armed ? Math.clamp(throttle, 0, 1) * 4 * MOTOR_MAX : 0, tx, ty, tz, armed);
+        double motorMax = MOTOR_MAX * thrustScale;
+        mix(armed ? Math.clamp(throttle, 0, 1) * 4 * motorMax : 0, tx, ty, tz, motorMax, armed);
 
         double thrust = 0;
         tx = ty = tz = 0;
@@ -76,7 +89,8 @@ public final class QuadFlightModel {
             tz += MX[i] * motors[i];
             ty += YAW_TORQUE_PER_NEWTON * SPIN[i] * motors[i];
         }
-        rates.add(tx / I_PITCH_ROLL * DT, ty / I_YAW * DT, tz / I_PITCH_ROLL * DT);
+        double inertia = mass / MASS;
+        rates.add(tx / (I_PITCH_ROLL * inertia) * DT, ty / (I_YAW * inertia) * DT, tz / (I_PITCH_ROLL * inertia) * DT);
         double w = rates.length();
         if (w > 1e-9) {
             attitude.mul(new Quaterniond().fromAxisAngleRad(rates.x / w, rates.y / w, rates.z / w, w * DT)).normalize();
@@ -85,9 +99,9 @@ public final class QuadFlightModel {
         Vector3d up = attitude.transform(new Vector3d(0, 1, 0));
         double drag = DRAG * velocity.length() + ROTOR_DRAG;
         velocity.add(
-                (up.x * thrust - drag * velocity.x) / MASS * DT,
-                ((up.y * thrust - drag * velocity.y) / MASS - G) * DT,
-                (up.z * thrust - drag * velocity.z) / MASS * DT);
+                (up.x * thrust - drag * velocity.x) / mass * DT,
+                ((up.y * thrust - drag * velocity.y) / mass - G) * DT,
+                (up.z * thrust - drag * velocity.z) / mass * DT);
     }
 
     private Vector3d angleModeRates(double pitch, double roll, double yaw) {
@@ -105,7 +119,7 @@ public final class QuadFlightModel {
     }
 
     /** Airmode mixer: shifts the collective to keep attitude authority, then clamps each motor. */
-    private void mix(double collective, double tx, double ty, double tz, boolean armed) {
+    private void mix(double collective, double tx, double ty, double tz, double motorMax, boolean armed) {
         double d2 = 4 * MOTOR_OFFSET * MOTOR_OFFSET;
         double min = Double.MAX_VALUE, max = -Double.MAX_VALUE;
         for (int i = 0; i < 4; i++) {
@@ -114,8 +128,8 @@ public final class QuadFlightModel {
             max = Math.max(max, motors[i]);
         }
         double shift = min < 0 ? -min : 0;
-        if (max + shift > MOTOR_MAX) shift = MOTOR_MAX - max;
-        for (int i = 0; i < 4; i++) motors[i] = armed ? Math.clamp(motors[i] + shift, 0, MOTOR_MAX) : 0;
+        if (max + shift > motorMax) shift = motorMax - max;
+        for (int i = 0; i < 4; i++) motors[i] = armed ? Math.clamp(motors[i] + shift, 0, motorMax) : 0;
     }
 
     /** Minecraft yaw in radians (0 = +Z, increases turning right). */
@@ -149,10 +163,27 @@ public final class QuadFlightModel {
         return a.distanceSquared(prev) <= b.distanceSquared(prev) ? a : b;
     }
 
+    /** bodyPitch that makes SBW's lerp(0.6 t, prev, bodyPitch) equal lerp(t, prev, current) over the tick. */
+    public static float sbwBodyPitch(float prev, float current) {
+        return prev + (current - prev) / 0.6f;
+    }
+
     private static Vector3d nearest(Vector3d v, Vector3d ref) {
         return new Vector3d(ref.x + Math.IEEEremainder(v.x - ref.x, 360),
                 ref.y + Math.IEEEremainder(v.y - ref.y, 360),
                 ref.z + Math.IEEEremainder(v.z - ref.z, 360));
+    }
+
+    /** Throttle that balances the current mass with the current thrust scale; above 1 the quad cannot lift off. */
+    public double hoverThrottle() {
+        return mass * G / (4 * MOTOR_MAX * thrustScale);
+    }
+
+    /** Electrical power the motors draw this tick, W. */
+    public double electricalPower() {
+        double sum = 0;
+        for (double m : motors) sum += Math.pow(m, 1.5);
+        return sum / Math.sqrt(2 * AIR_DENSITY * PROP_AREA) / POWER_EFFICIENCY;
     }
 
     public double thrustFraction() {
