@@ -114,6 +114,23 @@ final class MockPilotClient {
                 adds, removes, accepted, rejected, longestRejectedRun, resetCamera, events);
     }
 
+    /**
+     * Keeps the chunks under this relative box entity-ticking for the test (a game test only ticks
+     * entities near its own structure) and returns what undoes it.
+     */
+    static Runnable forceChunks(GameTestHelper helper, int minX, int minZ, int maxX, int maxZ) {
+        var level = helper.getLevel();
+        var from = new net.minecraft.world.level.ChunkPos(helper.absolutePos(new net.minecraft.core.BlockPos(minX, 0, minZ)));
+        var to = new net.minecraft.world.level.ChunkPos(helper.absolutePos(new net.minecraft.core.BlockPos(maxX, 0, maxZ)));
+        List<long[]> forced = new ArrayList<>();
+        for (int x = Math.min(from.x, to.x); x <= Math.max(from.x, to.x); x++) {
+            for (int z = Math.min(from.z, to.z); z <= Math.max(from.z, to.z); z++) {
+                if (level.setChunkForced(x, z, true)) forced.add(new long[]{x, z});
+            }
+        }
+        return () -> forced.forEach(c -> level.setChunkForced((int) c[0], (int) c[1], false));
+    }
+
     /** Chunk tickets held for this entity: the addon's view tickets and SBW's per-vehicle keep-loaded ones. */
     static int tickets(net.minecraft.server.level.ServerLevel level, Entity entity) {
         try {

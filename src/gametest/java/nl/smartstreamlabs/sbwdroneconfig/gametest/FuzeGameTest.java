@@ -30,11 +30,14 @@ public final class FuzeGameTest implements FabricGameTest {
     public static final List<Vec3> EXPLOSIONS = new CopyOnWriteArrayList<>();
     static final int[] SPEEDS = {30, 60, 100};
     static final Block[] THIN = {Blocks.GLASS_PANE, Blocks.IRON_BARS, Blocks.OAK_FENCE, Blocks.STONE};
-    static final int START_Z = 1, OBSTACLE_Z = 12, LANE_SPACING = 7, SHOT_TICKS = 30;
+    static final int START_Z = 1, OBSTACLE_Z = 26, LANE_SPACING = 7, SHOT_TICKS = 30;
+    /** SBW's setDeltaMovement refuses a jump of more than 2.83 blocks/tick; build the speed up in steps. */
+    static final double RAMP = 2.5;
 
     @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 700, batch = "fuze")
     public void fuzeAtSpeed(GameTestHelper helper) {
         ServerPlayer operator = helper.makeMockServerPlayerInLevel();
+        Runnable unforce = MockPilotClient.forceChunks(helper, 0, -1, 6, OBSTACLE_Z + 4);
         List<String> results = new ArrayList<>();
         List<String> failures = new ArrayList<>();
         int shot = 0;
@@ -45,6 +48,7 @@ public final class FuzeGameTest implements FabricGameTest {
         // A mob right behind a pane: two things to hit in one tick, still one detonation.
         shoot(helper, operator, shot++, Blocks.GLASS_PANE, 100, results, failures, true);
         helper.runAfterDelay((long) shot * SHOT_TICKS + 10, () -> {
+            unforce.run();
             results.forEach(r -> LOG.info("FPV-FUZE {}", r));
             helper.assertTrue(failures.isEmpty(), "fuze failures: " + failures);
             helper.succeed();
@@ -86,8 +90,15 @@ public final class FuzeGameTest implements FabricGameTest {
         helper.runAfterDelay(at + 2, () -> {
             before[0] = EXPLOSIONS.size();
             drone[0] = FpvStrikeGameTest.armed(helper, operator, new BlockPos(x, y, START_Z));
-            drone[0].setDeltaMovement(0, 0, speed / 20.0);
         });
+        // A sustained dive: the drone is held at the test speed (reached in steps) until it strikes.
+        for (int k = 0; k < SHOT_TICKS - 6; k++) {
+            helper.runAfterDelay(at + 2 + k, () -> {
+                if (drone[0] == null || drone[0].isRemoved()) return;
+                double v = Math.min(speed / 20.0, drone[0].getDeltaMovement().z + RAMP);
+                drone[0].setDeltaMovement(0, 0, v);
+            });
+        }
         helper.runAfterDelay(at + SHOT_TICKS - 3, () -> {
             List<Vec3> blasts = EXPLOSIONS.subList(before[0], EXPLOSIONS.size());
             double obstacle = helper.absoluteVec(new Vec3(0, 0, block == null ? OBSTACLE_Z : OBSTACLE_Z)).z;
