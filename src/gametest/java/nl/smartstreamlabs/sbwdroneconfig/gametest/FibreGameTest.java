@@ -33,6 +33,8 @@ public final class FibreGameTest implements FabricGameTest {
     /** A fibre drone that has flown 40 m east at y+3, laying fibre. */
     private static FpvDrone laid(GameTestHelper helper, ServerPlayer operator) {
         ServerLevel level = helper.getLevel();
+        Runnable unforce = MockPilotClient.forceChunks(helper, 0, 0, 46, 10);
+        helper.runAfterDelay(110, unforce::run);
         FpvDrone drone = DroneWarfare.FPV_FIBRE.create(level);
         Vec3 start = helper.absoluteVec(new Vec3(2.5, 3, 2.5));
         drone.moveTo(start.x, start.y, start.z, 0, 0);
