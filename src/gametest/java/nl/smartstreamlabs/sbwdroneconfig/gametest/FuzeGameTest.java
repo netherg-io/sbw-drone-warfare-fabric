@@ -30,7 +30,7 @@ public final class FuzeGameTest implements FabricGameTest {
     public static final List<Vec3> EXPLOSIONS = new CopyOnWriteArrayList<>();
     static final int[] SPEEDS = {30, 60, 100};
     static final Block[] THIN = {Blocks.GLASS_PANE, Blocks.IRON_BARS, Blocks.OAK_FENCE, Blocks.STONE};
-    static final int START_Z = 1, OBSTACLE_Z = 12, LANE_SPACING = 10, SHOT_TICKS = 30;
+    static final int START_Z = 1, OBSTACLE_Z = 12, LANE_SPACING = 7, SHOT_TICKS = 30;
 
     @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 700, batch = "fuze")
     public void fuzeAtSpeed(GameTestHelper helper) {
@@ -58,12 +58,20 @@ public final class FuzeGameTest implements FabricGameTest {
 
     private static void shoot(GameTestHelper helper, ServerPlayer operator, int shot, Block block, int speed,
                               List<String> results, List<String> failures, boolean mobBehind) {
-        int x = 3 + (shot % 4) * LANE_SPACING;
-        int y = 4 + (shot / 4) * 8;
+        // One column of lanes: the test's own chunks are the ticking ones.
+        int x = 3;
+        int y = 4 + shot * LANE_SPACING;
         long at = (long) shot * SHOT_TICKS + 5;
         FpvDrone[] drone = new FpvDrone[1];
         Zombie[] target = new Zombie[1];
         int[] before = new int[1];
+        List<String> track = new ArrayList<>();
+        for (int k = 1; k <= 8; k++) {
+            helper.runAfterDelay(at + 2 + k, () -> {
+                if (drone[0] != null) track.add(String.format("%.1f/%.1f%s", helper.relativeVec(drone[0].position()).z,
+                        drone[0].getDeltaMovement().z * 20, drone[0].isRemoved() ? "x" : ""));
+            });
+        }
         helper.runAfterDelay(at, () -> {
             for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) {
                 for (int z = START_Z - 1; z <= OBSTACLE_Z + 3; z++) helper.setBlock(new BlockPos(x + dx, y + dy, z), Blocks.AIR);
@@ -85,8 +93,8 @@ public final class FuzeGameTest implements FabricGameTest {
             double obstacle = helper.absoluteVec(new Vec3(0, 0, block == null ? OBSTACLE_Z : OBSTACLE_Z)).z;
             String where = blasts.isEmpty() ? "-" : String.format("%.2f", blasts.get(0).z - obstacle);
             String name = block == null ? "zombie" : block.getDescriptionId().replace("block.minecraft.", "") + (mobBehind ? "+zombie behind" : "");
-            String line = String.format("%s at %d m/s: explosions=%d, first at %s m from the obstacle's near face, drone removed=%s%s",
-                    name, speed, blasts.size(), where, drone[0].isRemoved(),
+            String line = String.format("%s at %d m/s: explosions=%d, first at %s m from the obstacle's near face, drone removed=%s, z/speed by tick %s%s",
+                    name, speed, blasts.size(), where, drone[0].isRemoved(), track,
                     target[0] == null ? "" : String.format(", zombie health %.1f", target[0].getHealth()));
             results.add(line);
             // The obstacle block spans [obstacle, obstacle + 1); a blast past its far face means the drone went through.

@@ -448,6 +448,16 @@ public final class FpvDrone extends DroneEntity {
         hurt(ModDamageTypes.causeCustomExplosionDamage(level().registryAccess(), this, controller), 10000);
     }
 
+    /**
+     * The 1 HP frame breaks at 0. SBW's vehicles fire a second, "wreck" explosion (5 m, 1 damage) in the
+     * tick they are destroyed with health at or below minus their maximum, which any 2-point hit, and
+     * the fuze's own kill, would reach; an FPV drone goes off once, through its warhead, or not at all.
+     */
+    @Override
+    public void setHealth(float health) {
+        super.setHealth(Math.max(health, 0));
+    }
+
     /** An unarmed warhead is a dud; this is the check SBW's destroy() uses to detonate it. */
     @Override
     public void destroy() {
