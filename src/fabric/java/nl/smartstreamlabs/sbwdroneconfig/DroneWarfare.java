@@ -60,7 +60,20 @@ public final class DroneWarfare implements ModInitializer {
     private static Item deployer(String path, EntityType<FpvDrone> type) {
         return Registry.register(BuiltInRegistries.ITEM, id(path), new AbstractDeployerItem(new Item.Properties().stacksTo(4)) {
             @Override public Entity spawnDeployedEntity(Level level, Player player) {
-                return type.create(level);
+                FpvDrone drone = type.create(level);
+                // A picked-up fibre drone brings its paid-out fibre back (FpvDrone.interact).
+                ItemStack stack = player.getMainHandItem().is(this) ? player.getMainHandItem() : player.getOffhandItem();
+                CustomData data = stack.get(DataComponents.ENTITY_DATA);
+                if (drone != null && data != null && stack.is(this)) EntityType.updateCustomEntityTag(level, player, drone, data);
+                return drone;
+            }
+
+            @Override public void appendHoverText(ItemStack stack, Item.TooltipContext context, java.util.List<Component> lines, net.minecraft.world.item.TooltipFlag flag) {
+                CustomData data = stack.get(DataComponents.ENTITY_DATA);
+                if (data == null) return;
+                double left = Math.max(0, FpvLink.SPOOL_M - data.copyTag().getDouble(FpvLink.PAID_OUT_TAG));
+                lines.add(Component.translatable("item.sbwdroneconfig.fibre_left", String.format("%.2f", left / 1000))
+                        .withStyle(net.minecraft.ChatFormatting.GRAY));
             }
         });
     }

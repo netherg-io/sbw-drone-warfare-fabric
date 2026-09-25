@@ -39,6 +39,8 @@ final class FpvLink {
     /** A cable point is laid every this many metres of flight; at most MAX_POINTS are kept for rendering. */
     static final double POINT_SPACING = 4;
     static final int MAX_POINTS = 128;
+    /** Paid-out fibre, m; also what a picked-up fibre drone's item carries to its next deployment. */
+    static final String PAID_OUT_TAG = "FpvFibrePaidM";
 
     final boolean fibre;
     double controlSnr = 99;
@@ -121,6 +123,69 @@ final class FpvLink {
         return RadioLink.milliwatts(RadioLink.receivedDbm(band, RadioLink.JAMMER_DBM, d, obstruction(level, jammer, receiver)));
     }
 
+    /**
+     * A blade swung along {@code from}-{@code to} cuts the laid fibre (the cable points, then the free
+     * end up to the drone at {@code drone}) where it passes within {@code reach} of it; the nearest
+     * crossing along the swing counts. Returns the cut point, or null. The fibre then ends there:
+     * the link is gone for good, as when the spool runs out.
+     */
+    @Nullable Vec3 cut(Vec3 from, Vec3 to, Vec3 drone, double reach) {
+        if (!fibre || snapped || cable.isEmpty()) return null;
+        int best = -1;
+        double bestAlong = Double.MAX_VALUE;
+        Vec3 bestPoint = null;
+        for (int i = 0; i < cable.size(); i++) {
+            Vec3 a = cable.get(i), b = i + 1 < cable.size() ? cable.get(i + 1) : drone;
+            double[] c = closest(from, to, a, b);
+            if (c[2] <= reach && c[0] < bestAlong) {
+                bestAlong = c[0];
+                best = i;
+                bestPoint = a.add(b.subtract(a).scale(c[1]));
+            }
+        }
+        if (best < 0) return null;
+        cable.subList(best + 1, cable.size()).clear();
+        cable.add(bestPoint);
+        snapped = true;
+        framesMissed = FAILSAFE_TICKS;
+        return bestPoint;
+    }
+
+    /**
+     * Closest approach of segments p0-p1 and q0-q1: {s, t, distance}, with s and t the positions
+     * (0..1) along each segment.
+     */
+    static double[] closest(Vec3 p0, Vec3 p1, Vec3 q0, Vec3 q1) {
+        Vec3 d1 = p1.subtract(p0), d2 = q1.subtract(q0), r = p0.subtract(q0);
+        double a = d1.dot(d1), e = d2.dot(d2), f = d2.dot(r);
+        double s, t;
+        if (a < 1e-12 && e < 1e-12) {
+            s = t = 0;
+        } else if (a < 1e-12) {
+            s = 0;
+            t = Math.clamp(f / e, 0, 1);
+        } else {
+            double c = d1.dot(r);
+            if (e < 1e-12) {
+                t = 0;
+                s = Math.clamp(-c / a, 0, 1);
+            } else {
+                double b = d1.dot(d2), denom = a * e - b * b;
+                s = denom > 1e-12 ? Math.clamp((b * f - c * e) / denom, 0, 1) : 0;
+                t = (b * s + f) / e;
+                if (t < 0) {
+                    t = 0;
+                    s = Math.clamp(-c / a, 0, 1);
+                } else if (t > 1) {
+                    t = 1;
+                    s = Math.clamp((b - c) / a, 0, 1);
+                }
+            }
+        }
+        Vec3 onP = p0.add(d1.scale(s)), onQ = q0.add(d2.scale(t));
+        return new double[]{s, t, onP.distanceTo(onQ)};
+    }
+
     boolean payOutForTest(Vec3 drone) {
         boolean snappedNow = payOut(drone);
         if (snapped) framesMissed = FAILSAFE_TICKS;
@@ -176,7 +241,7 @@ final class FpvLink {
             points.add(FloatTag.valueOf((float) p.z));
         }
         tag.put("FpvFibre", points);
-        tag.putDouble("FpvFibrePaidM", paidOut);
+        tag.putDouble(PAID_OUT_TAG, paidOut);
         tag.putBoolean("FpvFibreSnapped", snapped);
     }
 
@@ -187,7 +252,7 @@ final class FpvLink {
         for (int i = 0; i + 2 < points.size(); i += 3) {
             cable.add(new Vec3(points.getFloat(i), points.getFloat(i + 1), points.getFloat(i + 2)));
         }
-        paidOut = tag.getDouble("FpvFibrePaidM");
+        paidOut = tag.getDouble(PAID_OUT_TAG);
         snapped = tag.getBoolean("FpvFibreSnapped");
         if (snapped) framesMissed = FAILSAFE_TICKS;
     }
