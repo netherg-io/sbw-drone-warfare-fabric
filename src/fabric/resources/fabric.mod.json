@@ -5,6 +5,7 @@
   "name": "SBW Drone Warfare — Fabric",
   "description": "Fabric port: FPV drone with server-side Angle/Acro flight, payload mass, battery, a kamikaze contact fuze, radio link with jamming and a fibre-optic variant.",
   "license": "AGPL-3.0-only",
+  "icon": "assets/sbwdroneconfig/icon.png",
   "authors": [
     "Team SmartStreamLabs",
     "Fabric port: netherg-io"
