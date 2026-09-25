@@ -5,5 +5,6 @@
   "entity.sbwdroneconfig.fibre_fpv_drone": "Fibre-optic FPV Drone (Fabric prototype)",
   "item.sbwdroneconfig.signal_jammer": "Signal Jammer",
   "message.sbwdroneconfig.jammer_on": "Signal Jammer ON",
-  "message.sbwdroneconfig.jammer_off": "Signal Jammer OFF"
+  "message.sbwdroneconfig.jammer_off": "Signal Jammer OFF",
+  "item.sbwdroneconfig.fibre_left": "Fibre left on the spool: %s km"
 }

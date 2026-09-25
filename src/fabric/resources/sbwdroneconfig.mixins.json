@@ -3,7 +3,11 @@
   "package": "nl.smartstreamlabs.sbwdroneconfig.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "GameRendererMixin"
+    "GameRendererMixin",
+    "VehicleSoundInstanceMixin",
+    "SoundManagerAccessor",
+    "SoundEngineAccessor",
+    "ChannelAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
@@ -11,6 +15,7 @@
   "mixins": [
     "ChunkMapMixin",
     "TrackedEntityMixin",
-    "PlayerChunkSenderMixin"
+    "PlayerChunkSenderMixin",
+    "SwingMixin"
   ]
 }

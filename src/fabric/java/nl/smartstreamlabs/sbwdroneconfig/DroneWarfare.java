@@ -2,6 +2,7 @@ package nl.smartstreamlabs.sbwdroneconfig;
 
 import com.atsuishio.superbwarfare.item.misc.AbstractDeployerItem;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.Registry;
@@ -60,7 +61,20 @@ public final class DroneWarfare implements ModInitializer {
     private static Item deployer(String path, EntityType<FpvDrone> type) {
         return Registry.register(BuiltInRegistries.ITEM, id(path), new AbstractDeployerItem(new Item.Properties().stacksTo(4)) {
             @Override public Entity spawnDeployedEntity(Level level, Player player) {
-                return type.create(level);
+                FpvDrone drone = type.create(level);
+                // A picked-up fibre drone brings its paid-out fibre back (FpvDrone.interact).
+                ItemStack stack = player.getMainHandItem().is(this) ? player.getMainHandItem() : player.getOffhandItem();
+                CustomData data = stack.get(DataComponents.ENTITY_DATA);
+                if (drone != null && data != null && stack.is(this)) drone.restoreSpool(data.copyTag().getDouble(FpvLink.PAID_OUT_TAG));
+                return drone;
+            }
+
+            @Override public void appendHoverText(ItemStack stack, Item.TooltipContext context, java.util.List<Component> lines, net.minecraft.world.item.TooltipFlag flag) {
+                CustomData data = stack.get(DataComponents.ENTITY_DATA);
+                if (data == null) return;
+                double left = Math.max(0, FpvLink.SPOOL_M - data.copyTag().getDouble(FpvLink.PAID_OUT_TAG));
+                lines.add(Component.translatable("item.sbwdroneconfig.fibre_left", String.format("%.2f", left / 1000))
+                        .withStyle(net.minecraft.ChatFormatting.GRAY));
             }
         });
     }
@@ -75,6 +89,15 @@ public final class DroneWarfare implements ModInitializer {
 
     @Override public void onInitialize() {
         ServerTickEvents.END_SERVER_TICK.register(RemoteView::tick);
-        ServerLifecycleEvents.SERVER_STOPPED.register(server -> RemoteView.clear());
+        ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
+            if (entity instanceof FpvDrone drone && drone.fibre) FpvDrone.LOADED_FIBRE.add(drone);
+        });
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity, level) -> {
+            if (entity instanceof FpvDrone drone) FpvDrone.LOADED_FIBRE.remove(drone);
+        });
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            RemoteView.clear();
+            FpvDrone.LOADED_FIBRE.clear();
+        });
     }
 }

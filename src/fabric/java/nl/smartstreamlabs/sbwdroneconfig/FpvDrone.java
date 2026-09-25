@@ -7,8 +7,11 @@ import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
 import com.atsuishio.superbwarfare.init.ModDamageTypes;
 import com.atsuishio.superbwarfare.init.ModSerializers;
 import com.atsuishio.superbwarfare.init.ModTags;
+import com.atsuishio.superbwarfare.item.misc.MonitorItem;
 import com.atsuishio.superbwarfare.tools.DamageHandler;
+import com.atsuishio.superbwarfare.tools.NBTTool;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.syncher.EntityDataAccessor;
@@ -78,6 +81,8 @@ public final class FpvDrone extends DroneEntity {
     private static final double THROTTLE_STEP = 0.025;
     // Failsafe descent at this share of the hover throttle; the flight controller estimates hover like INAV does.
     private static final double FAILSAFE_HOVER_SHARE = 0.9;
+    /** How close to the fibre a swing must pass to cut it, m. */
+    static final double FIBRE_CUT_REACH = 0.4;
 
     private final QuadFlightModel model = new QuadFlightModel();
     private final Battery battery = new Battery();
@@ -292,6 +297,85 @@ public final class FpvDrone extends DroneEntity {
         }
     }
 
+    /** Loaded fibre drones, server side (kept by DroneWarfare from the entity load events): what a swing may cut. */
+    static final java.util.Set<FpvDrone> LOADED_FIBRE = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+    /**
+     * A player's arm swing (attacking, mining, placing: every swing a client reports) cuts the laid fibre
+     * of a fibre drone within his reach, as a blade or a boot through the line would, operator and
+     * teammates included; nothing solid may be in between. The nearest crossing along the swing is cut.
+     */
+    public static void swing(ServerPlayer player) {
+        if (LOADED_FIBRE.isEmpty() || player.isSpectator() || !player.isAlive()) return;
+        ServerLevel level = player.serverLevel();
+        Vec3 eye = player.getEyePosition();
+        Vec3 end = eye.add(player.getLookAngle().scale(player.entityInteractionRange()));
+        FpvDrone hit = null;
+        double[] best = null;
+        for (FpvDrone drone : LOADED_FIBRE) {
+            if (drone.level() != level || !drone.isAlive()) continue;
+            double[] c = drone.link.crossing(eye, end, drone.position().add(0, drone.getBbHeight() / 2, 0), FIBRE_CUT_REACH);
+            if (c != null && (best == null || c[0] < best[0])) {
+                best = c;
+                hit = drone;
+            }
+        }
+        if (hit == null) return;
+        Vec3 at = new Vec3(best[2], best[3], best[4]);
+        // Measured to the fibre itself, so a pane or a door just in front of it still protects it.
+        if (level.clip(new ClipContext(eye, at, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player)).getType() != HitResult.Type.MISS) return;
+        hit.link.cut(best);
+        hit.entityData.set(CABLE, hit.link.packCable());
+        hit.entityData.set(LINK_QUALITY, 0f);
+        level.playSound(null, at.x, at.y, at.z, net.minecraft.sounds.SoundEvents.SHEEP_SHEAR, net.minecraft.sounds.SoundSource.PLAYERS, 0.8f, 1.4f);
+        Player operator = hit.getController();
+        if (operator != null) operator.displayClientMessage(Component.literal("FPV: FIBRE CUT").withStyle(ChatFormatting.RED), true);
+    }
+
+    /** Deployment from a picked-up fibre drone's item: the fibre it had already paid out, and nothing else from the item. */
+    void restoreSpool(double paidOut) {
+        if (!fibre || !Double.isFinite(paidOut)) return;
+        link.paidOut = Math.clamp(paidOut, 0, FpvLink.SPOOL_M);
+        entityData.set(FIBRE_M, (float) link.paidOut);
+    }
+
+    /**
+     * SBW's pickup (sneak + empty hand or crowbar) returns a new drone item. A fibre drone that has laid
+     * fibre gives back its item with the fibre already paid out ({@link DataComponents#ENTITY_DATA}),
+     * which the next deployment puts back: a used spool is not a fresh 3 km one.
+     */
+    @Override
+    public net.minecraft.world.InteractionResult interact(Player player, net.minecraft.world.InteractionHand hand) {
+        ItemStack held = player.getMainHandItem();
+        // The synced paid-out length, so the client predicts the same branch as the server.
+        if (!fibre || !player.isShiftKeyDown() || fibrePaidOut() <= 0
+                || !(held.isEmpty() || held.is(ModTags.Items.TOOLS_CROWBAR))) {
+            return super.interact(player, hand);
+        }
+        if (level().isClientSide()) return net.minecraft.world.InteractionResult.SUCCESS;
+        CompoundTag spool = new CompoundTag();
+        spool.putString("id", net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(getType()).toString());
+        spool.putDouble(FpvLink.PAID_OUT_TAG, link.paidOut);
+        ItemStack item = new ItemStack(droneItem());
+        item.set(DataComponents.ENTITY_DATA, net.minecraft.world.item.component.CustomData.of(spool));
+        give(player, item);
+        for (int i = 0; i < getAmmo(); i++) give(player, getCurrentItem().copy());
+        for (ItemStack stack : player.getInventory().items) {
+            if (!(stack.getItem() instanceof MonitorItem)) continue;
+            CompoundTag tag = NBTTool.getTag(stack);
+            if (tag.getString(MonitorItem.LINKED_DRONE).equals(getStringUUID())) {
+                MonitorItem.Companion.disLink(tag, player);
+                NBTTool.saveTag(stack, tag);
+            }
+        }
+        discard();
+        return net.minecraft.world.InteractionResult.SUCCESS;
+    }
+
+    private static void give(Player player, ItemStack stack) {
+        if (!player.getInventory().add(stack)) player.drop(stack, false);
+    }
+
     /** The attitude to show: the model's on the server, the smoothed synced one on a client. */
     private Quaternionf attitude() {
         return level().isClientSide() && clientAttitude != null ? clientAttitude : entityData.get(ATTITUDE);
@@ -323,6 +407,11 @@ public final class FpvDrone extends DroneEntity {
     @Override
     public float getYaw(float tickDelta) {
         return level().isClientSide() && getId() == viewedId ? Mth.lerp(tickDelta, camYawO, camYaw) : super.getYaw(tickDelta);
+    }
+
+    /** Client: the local player is flying this drone through his monitor, so he listens from inside it. */
+    public boolean viewedHere() {
+        return level().isClientSide() && getId() == viewedId;
     }
 
     public float cameraRoll(float tickDelta) {
@@ -446,6 +535,16 @@ public final class FpvDrone extends DroneEntity {
         detonated = true;
         clearPayload();
         hurt(ModDamageTypes.causeCustomExplosionDamage(level().registryAccess(), this, controller), 10000);
+    }
+
+    /**
+     * The 1 HP frame breaks at 0. SBW's vehicles fire a second, "wreck" explosion (5 m, 1 damage) in the
+     * tick they are destroyed with health at or below minus their maximum, which any 2-point hit, and
+     * the fuze's own kill, would reach; an FPV drone goes off once, through its warhead, or not at all.
+     */
+    @Override
+    public void setHealth(float health) {
+        super.setHealth(Math.max(health, 0));
     }
 
     /** An unarmed warhead is a dud; this is the check SBW's destroy() uses to detonate it. */

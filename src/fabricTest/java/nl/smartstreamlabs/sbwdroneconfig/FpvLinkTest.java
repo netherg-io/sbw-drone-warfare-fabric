@@ -60,4 +60,50 @@ class FpvLinkTest {
         assertEquals(1, link.controlQuality());
         assertEquals(1, link.videoQuality());
     }
+
+    @Test
+    void segmentClosestApproach() {
+        double[] c = FpvLink.closest(new Vec3(0, 0, -1), new Vec3(0, 0, 1), new Vec3(-1, 0.3, 0), new Vec3(1, 0.3, 0));
+        assertEquals(0.5, c[0], 1e-9);
+        assertEquals(0.5, c[1], 1e-9);
+        assertEquals(0.3, c[2], 1e-9);
+        // Parallel segments, and a degenerate one.
+        assertEquals(1.0, FpvLink.closest(Vec3.ZERO, new Vec3(1, 0, 0), new Vec3(0, 1, 0), new Vec3(1, 1, 0))[2], 1e-9);
+        assertEquals(2.0, FpvLink.closest(Vec3.ZERO, Vec3.ZERO, new Vec3(-1, 2, 0), new Vec3(1, 2, 0))[2], 1e-9);
+    }
+
+    @Test
+    void aSwingAcrossTheFibreCutsItThereForGood() {
+        FpvLink link = new FpvLink(true);
+        for (int x = 0; x <= 40; x++) link.payOutForTest(new Vec3(x, 1, 0));
+        Vec3 drone = new Vec3(40, 1, 0);
+        assertNull(link.cut(new Vec3(20, 3, -1), new Vec3(20, 3, 1), drone, 0.4), "a swing 2 m above the fibre misses");
+        Vec3 at = link.cut(new Vec3(21, 1.2, -1), new Vec3(21, 1.2, 1), drone, 0.4);
+        assertNotNull(at);
+        assertEquals(21, at.x, 1e-6);
+        assertTrue(link.snapped);
+        assertEquals(0, link.controlQuality());
+        assertEquals(at, link.cable.get(link.cable.size() - 1), "the fibre now ends at the cut");
+        assertTrue(link.cable.stream().allMatch(p -> p.x <= 21 + 1e-6));
+        assertNull(link.cut(new Vec3(10, 1, -1), new Vec3(10, 1, 1), drone, 0.4), "a cut fibre cannot be cut again");
+    }
+
+    @Test
+    void theFreeEndUpToTheDroneCanBeCutToo() {
+        FpvLink link = new FpvLink(true);
+        link.payOutForTest(Vec3.ZERO);
+        link.payOutForTest(new Vec3(3, 0, 0));
+        assertNotNull(link.cut(new Vec3(2, 0, -1), new Vec3(2, 0, 1), new Vec3(3, 0, 0), 0.4));
+    }
+
+    @Test
+    void theCableStaysWithinItsElementBudgetOverTheWholeSpool() {
+        FpvLink link = new FpvLink(true);
+        for (int i = 0; i <= 3200 && !link.snapped; i++) {
+            link.payOutForTest(new Vec3(i, 10 + Math.sin(i / 50.0) * 20, Math.cos(i / 80.0) * 30));
+            assertTrue(link.cable.size() <= FpvLink.MAX_POINTS);
+        }
+        assertTrue(link.snapped, "the 3 km spool runs out");
+        assertTrue(link.packCable().size() <= FpvLink.MAX_POINTS * 3);
+    }
 }

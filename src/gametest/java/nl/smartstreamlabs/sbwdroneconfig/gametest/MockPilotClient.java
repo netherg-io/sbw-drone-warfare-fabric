@@ -32,6 +32,8 @@ final class MockPilotClient {
     final Entity drone;
     private final EmbeddedChannel channel;
     boolean hasDrone;
+    /** SBW movement keys held on the client (bit 4 = Space: throttle up). */
+    short keys;
     int adds, removes, accepted, rejected, resetCamera;
     /** Ticks since the drone last (re)appeared on the client, and ticks since an input was last accepted. */
     int sinceAdd, sinceAccepted;
@@ -71,6 +73,7 @@ final class MockPilotClient {
         DroneEntity target = DroneControlAccess.INSTANCE.resolve(player);
         boolean ok = target == drone && DroneControlAccess.INSTANCE.acceptsSequence(target, session, sequence);
         if (ok) {
+            target.processInput(keys);
             accepted++;
             sinceAccepted = 0;
             rejectedRun = 0;
@@ -109,6 +112,23 @@ final class MockPilotClient {
     String summary() {
         return String.format("adds=%d removes=%d accepted=%d rejected=%d longestRejectedRun=%d resetCamera=%d events=%s",
                 adds, removes, accepted, rejected, longestRejectedRun, resetCamera, events);
+    }
+
+    /**
+     * Keeps the chunks under this relative box entity-ticking for the test (a game test only ticks
+     * entities near its own structure) and returns what undoes it.
+     */
+    static Runnable forceChunks(GameTestHelper helper, int minX, int minZ, int maxX, int maxZ) {
+        var level = helper.getLevel();
+        var from = new net.minecraft.world.level.ChunkPos(helper.absolutePos(new net.minecraft.core.BlockPos(minX, 0, minZ)));
+        var to = new net.minecraft.world.level.ChunkPos(helper.absolutePos(new net.minecraft.core.BlockPos(maxX, 0, maxZ)));
+        List<long[]> forced = new ArrayList<>();
+        for (int x = Math.min(from.x, to.x); x <= Math.max(from.x, to.x); x++) {
+            for (int z = Math.min(from.z, to.z); z <= Math.max(from.z, to.z); z++) {
+                if (level.setChunkForced(x, z, true)) forced.add(new long[]{x, z});
+            }
+        }
+        return () -> forced.forEach(c -> level.setChunkForced((int) c[0], (int) c[1], false));
     }
 
     /** Chunk tickets held for this entity: the addon's view tickets and SBW's per-vehicle keep-loaded ones. */

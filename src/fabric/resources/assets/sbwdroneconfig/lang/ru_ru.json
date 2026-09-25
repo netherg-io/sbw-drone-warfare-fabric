@@ -5,5 +5,6 @@
   "entity.sbwdroneconfig.fibre_fpv_drone": "FPV-дрон на оптоволокне (прототип Fabric)",
   "item.sbwdroneconfig.signal_jammer": "Подавитель сигнала",
   "message.sbwdroneconfig.jammer_on": "Подавитель сигнала ВКЛ",
-  "message.sbwdroneconfig.jammer_off": "Подавитель сигнала ВЫКЛ"
+  "message.sbwdroneconfig.jammer_off": "Подавитель сигнала ВЫКЛ",
+  "item.sbwdroneconfig.fibre_left": "Осталось волокна на катушке: %s км"
 }
