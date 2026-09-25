@@ -15,6 +15,18 @@ Status:
 
 Replacement plan for every *replace before release* file and the Signal Jammer source check: [docs/ASSET-PLAN.md](docs/ASSET-PLAN.md).
 
+## What the Fabric jar ships
+
+The Fabric artifact (`build.gradle` builds only `src/fabric`) contains: our own item icon PNGs and mod icon
+(see "Fabric own item icons" below, CC BY 4.0 by netherg-io) and our own JSON/code (AGPL-3.0-only). Nothing else
+from `src/main/resources` (the audit above) is redistributed. The FPV drone's entity model, texture, animation
+and engine sound, and the payload/explosion effects, are drawn at runtime from the installed Superb Warfare
+Fabric jar (LGPL-3.0-only) by reference, not copied in. Everything else not ported (fibre-optic line rendering,
+video noise, HUD) uses vanilla textures/fonts or plain drawing. No non-commercial (NC) or no-derivatives (ND)
+licensed asset is shipped, and no file with unverified upstream provenance (the "replace before release" rows
+above) is shipped. `scripts/check-artifact.py` enforces this: it fails the build on any `.png/.ogg/.obj/.mtl`
+outside an explicit per-path allow-list.
+
 ## Summary
 
 96 files under `assets/`, plus 33 root/data resources.
@@ -113,3 +125,18 @@ No assets were added. HUD additions are vanilla-font text; payload, battery and 
 ## Fabric FPV link, jammer, fibre and motor tone — 2026-09-24
 
 No assets were added. The Signal Jammer item uses vanilla's lightning rod model and the fibre drone's icon vanilla string (both referenced from Minecraft, not copied); the upstream Signal Jammer OBJ/texture stays excluded. The fibre is drawn as vanilla line geometry, the video noise as filled GUI rectangles, and the motor tone is Superb Warfare's installed `drone_engine` sound. Link, jammer and fibre code is original AGPL-3.0 work.
+
+## Fabric own item icons — 2026-09-25
+
+Own work, netherg-io, **CC BY 4.0** ([license text](https://creativecommons.org/licenses/by/4.0/)). Generated
+by `tools/item_icons.py` (stdlib-only Python; the pixel data lives in that file as source, so the PNGs are
+reproducible byte-for-byte). 16x16 vanilla-style pixel art, RGBA with a transparent background.
+
+| File | Description |
+|---|---|
+| `assets/sbwdroneconfig/textures/item/cubed_fpv_drone.png` | 5" FPV quad, X frame, 4 props, red/orange warhead nub at the nose. Replaces the vanilla iron ingot icon. |
+| `assets/sbwdroneconfig/textures/item/fibre_fpv_drone.png` | Same quad plus a white fibre-optic spool on its back and a trailing line. Replaces the vanilla string icon. |
+| `assets/sbwdroneconfig/textures/item/signal_jammer.png` | Handheld jammer: boxy dark-green body, 4 antennas, LED and screen. Replaces the vanilla lightning rod model. |
+| `assets/sbwdroneconfig/icon.png` | Mod icon (Mod Menu etc.): the FPV quad art, nearest-neighbour upscaled 16x to 128x128. |
+
+These are the first files this repository ships under `assets/sbwdroneconfig/textures` or `assets/sbwdroneconfig/icon.png`; `scripts/check-artifact.py` allow-lists exactly these four paths. The Signal Jammer's CC BY 4.0 OBJ/MTL source (see [docs/ASSET-PLAN.md](docs/ASSET-PLAN.md)) is still not shipped — this release uses the flat icon above instead of the 3D model.
