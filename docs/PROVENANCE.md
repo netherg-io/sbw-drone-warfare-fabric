@@ -16,9 +16,9 @@ The current Fabric prototype still uses the recorded 1.0.1 baseline plus Fabric 
 
 ## Published Fabric dependency
 
-`superbwarfare-fabric` bf18: https://github.com/netherg-io/superbwarfare-fabric/releases/tag/bf18
+`superbwarfare-fabric` bf19: https://github.com/netherg-io/superbwarfare-fabric/releases/tag/bf19
 
-Artifact `superbwarfare-0.8.9.1-mc1.21.1-bf18.jar`, SHA-256 `9ca5d4901e7e1cd283ba688651e1c5ba88ef72463b5ecf732ad995c2efa4c03a`. Gradle downloads it anonymously and verifies this checksum before use. Wrapper distribution is also checksum-pinned. Java 21, Minecraft 1.21.1, Loom 1.11.8, Mojang+Parchment 2024.11.17, Fabric Loader 0.19.3/API 0.116.15.
+Artifact `superbwarfare-0.8.9.1-mc1.21.1-bf19.jar`, SHA-256 `7a32396379bd6526d5d53ef487dc79bac9385f5e3272966e4d5e56bc128a487c`. Gradle downloads it anonymously and verifies this checksum before use. Wrapper distribution is also checksum-pinned. Java 21, Minecraft 1.21.1, Loom 1.11.8, Mojang+Parchment 2024.11.17, Fabric Loader 0.19.3/API 0.116.15.
 
 ## Asset decisions
 
