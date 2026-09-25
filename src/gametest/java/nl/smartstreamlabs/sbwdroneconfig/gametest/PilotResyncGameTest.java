@@ -11,6 +11,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.phys.Vec3;
 import nl.smartstreamlabs.sbwdroneconfig.DroneWarfare;
 import nl.smartstreamlabs.sbwdroneconfig.FpvDrone;
@@ -27,26 +28,74 @@ public final class PilotResyncGameTest implements FabricGameTest {
     private static final Logger LOG = LogUtils.getLogger();
     static final int VIEW_CHUNKS = 6;
 
+    /** A jump into chunks that are loaded (another player there): the drone leaves the pilot's client and comes back. */
     @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200)
-    public void pilotInputAfterTeleport120m(GameTestHelper helper) { teleport(helper, 120); }
-
-    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200)
-    public void pilotInputAfterTeleport300m(GameTestHelper helper) { teleport(helper, 300); }
-
-    /** A jump like a teleport or a rubber-band correction: out of the pilot's loaded chunks at once. */
-    private static void teleport(GameTestHelper helper, int metres) {
+    public void pilotInputAfterTeleportIntoLoadedArea(GameTestHelper helper) {
         MockPilotClient client = fly(helper, 64);
         FpvDrone drone = (FpvDrone) client.drone;
+        ServerLevel level = helper.getLevel();
+        int metres = 150;
+        ChunkPos target = new ChunkPos(BlockPos.containing(drone.getX() + metres, drone.getY(), drone.getZ()));
+        helper.runAfterDelay(20, () -> level.setChunkForced(target.x, target.z, true));
         helper.runAfterDelay(40, () -> {
             helper.assertTrue(client.accepted > 20, "input must flow before the jump: " + client.summary());
             drone.teleportTo(drone.getX() + metres, drone.getY(), drone.getZ());
         });
         helper.runAfterDelay(140, () -> {
             boolean back = client.hasDrone && client.adds >= 2;
-            LOG.info("FPV-RESYNC teleport {} m: drone back on the client={} input accepted in the last {} ticks={} ({})",
-                    metres, back, client.sinceAdd, client.sinceAccepted <= 2, client.summary());
+            LOG.info("FPV-RESYNC teleport {} m into a loaded area: drone back on the client={} input accepted now={} ({})",
+                    metres, back, client.sinceAccepted <= 2, client.summary());
+            level.setChunkForced(target.x, target.z, false);
             helper.assertTrue(back, "the drone must come back to the pilot's client: " + client.summary());
             helper.assertTrue(client.sinceAccepted <= 2, "input must reach the drone after it comes back: " + client.summary());
+            drone.discard();
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A jump of 80 m lands in chunks the view ticket keeps loaded but not ticking: the drone would
+     * hang there, frozen but still flown. It must be brought back to ticking and keep obeying.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200)
+    public void pilotTeleportIntoNonTickingRingKeepsFlying(GameTestHelper helper) {
+        MockPilotClient client = fly(helper, 64);
+        FpvDrone drone = (FpvDrone) client.drone;
+        int[] ticks = new int[2];
+        helper.runAfterDelay(40, () -> drone.teleportTo(drone.getX() + 80, drone.getY(), drone.getZ()));
+        helper.runAfterDelay(60, () -> ticks[0] = drone.tickCount);
+        helper.runAfterDelay(140, () -> {
+            ticks[1] = drone.tickCount;
+            LOG.info("FPV-RESYNC teleport 80 m into the loaded ring: drone ticks in 80 ticks={} input accepted now={} ({})",
+                    ticks[1] - ticks[0], client.sinceAccepted <= 2, client.summary());
+            helper.assertTrue(ticks[1] - ticks[0] > 60, "the drone must keep ticking: " + (ticks[1] - ticks[0]));
+            helper.assertTrue(client.sinceAccepted <= 2, "input must reach the drone: " + client.summary());
+            drone.discard();
+            helper.succeed();
+        });
+    }
+
+    /**
+     * A jump into unloaded chunks: the drone is no longer in the world anyone can see, so the flight
+     * ends as for an unloaded drone: the client resets its camera and no input is taken any more.
+     */
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200)
+    public void pilotTeleportIntoUnloadedAreaEndsCleanly(GameTestHelper helper) {
+        MockPilotClient client = fly(helper, 64);
+        FpvDrone drone = (FpvDrone) client.drone;
+        int[] acceptedAtJump = {0};
+        helper.runAfterDelay(40, () -> {
+            acceptedAtJump[0] = client.accepted;
+            drone.teleportTo(drone.getX() + 600, drone.getY(), drone.getZ());
+        });
+        helper.runAfterDelay(100, () -> {
+            boolean using = com.atsuishio.superbwarfare.tools.NBTTool.getTag(client.player.getMainHandItem()).getBoolean("Using");
+            int after = client.accepted - acceptedAtJump[0];
+            int tickets = MockPilotClient.tickets(helper.getLevel(), drone);
+            LOG.info("FPV-RESYNC teleport 600 m into unloaded chunks: cameraReset={} monitorUsing={} inputsAcceptedAfter={} droneTickets={} ({})",
+                    client.resetCamera, using, after, tickets, client.summary());
+            helper.assertTrue(client.resetCamera >= 1 && !using && after <= 1 && tickets == 0,
+                    "the flight must end cleanly: " + client.summary());
             drone.discard();
             helper.succeed();
         });

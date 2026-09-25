@@ -111,6 +111,31 @@ final class MockPilotClient {
                 adds, removes, accepted, rejected, longestRejectedRun, resetCamera, events);
     }
 
+    /** Chunk tickets held for this entity: the addon's view tickets and SBW's per-vehicle keep-loaded ones. */
+    static int tickets(net.minecraft.server.level.ServerLevel level, Entity entity) {
+        try {
+            Field dm = net.minecraft.server.level.ChunkMap.class.getDeclaredField("distanceManager");
+            dm.setAccessible(true);
+            Field all = net.minecraft.server.level.DistanceManager.class.getDeclaredField("tickets");
+            all.setAccessible(true);
+            Field key = net.minecraft.server.level.Ticket.class.getDeclaredField("key");
+            key.setAccessible(true);
+            var map = (it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap<?>) all.get(dm.get(level.getChunkSource().chunkMap));
+            int n = 0;
+            for (Object set : map.values()) {
+                for (Object o : (Iterable<?>) set) {
+                    var t = (net.minecraft.server.level.Ticket<?>) o;
+                    String type = t.getType().toString();
+                    if (Integer.valueOf(entity.getId()).equals(key.get(t))
+                            && (type.equals("sbwdroneconfig_fpv_view") || type.equals("post_teleport"))) n++;
+                }
+            }
+            return n;
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     private static EmbeddedChannel channel(ServerPlayer player) {
         try {
             Field conn = net.minecraft.server.network.ServerCommonPacketListenerImpl.class.getDeclaredField("connection");
