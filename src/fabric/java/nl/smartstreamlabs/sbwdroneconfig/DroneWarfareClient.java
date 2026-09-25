@@ -6,7 +6,9 @@ import com.atsuishio.superbwarfare.item.misc.MonitorItem;
 import com.atsuishio.superbwarfare.tools.EntityFindUtil;
 import com.atsuishio.superbwarfare.tools.NBTTool;
 import net.fabricmc.api.ClientModInitializer;
+import com.atsuishio.superbwarfare.event.ClientEventHandler;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
@@ -25,6 +27,14 @@ public final class DroneWarfareClient implements ClientModInitializer {
         EntityRendererRegistry.register(DroneWarfare.FPV_FIBRE, DroneRenderer::new);
         WorldRenderEvents.AFTER_TRANSLUCENT.register(context -> renderCables(context.matrixStack(), context.camera().getPosition(),
                 context.tickCounter().getGameTimeDeltaPartialTick(false)));
+        // Leaving the server while flying: the server can no longer send ResetCameraTypeMessage, and the
+        // monitor's third-person camera type would stay in the options into the next join.
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> {
+            if (FpvDrone.viewedId == -1) return;
+            FpvDrone.viewedId = -1;
+            mc.execute(() -> mc.options.setCameraType(ClientEventHandler.lastCameraType != null
+                    ? ClientEventHandler.lastCameraType : CameraType.FIRST_PERSON));
+        });
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             FpvDrone drone = viewedDrone();
             FpvDrone.viewedId = drone == null ? -1 : drone.getId();
