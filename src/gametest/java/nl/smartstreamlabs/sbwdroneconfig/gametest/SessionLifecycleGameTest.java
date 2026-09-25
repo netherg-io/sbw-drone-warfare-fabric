@@ -46,12 +46,12 @@ public final class SessionLifecycleGameTest implements FabricGameTest {
     static final int TRIGGER = 30;
     static final int CHECK = TRIGGER + 45;
 
-    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120)
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120, batch = "lifecycle")
     public void exitMonitorOff(GameTestHelper helper) {
         exit(helper, "monitor off", c -> c.player.getMainHandItem().use(helper.getLevel(), c.player, InteractionHand.MAIN_HAND), true, true);
     }
 
-    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120)
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120, batch = "lifecycle")
     public void exitDroneDestroyed(GameTestHelper helper) {
         exit(helper, "drone destroyed", c -> {
             ServerPlayer shooter = helper.makeMockServerPlayerInLevel();
@@ -60,22 +60,22 @@ public final class SessionLifecycleGameTest implements FabricGameTest {
     }
 
     /** Removal without damage: a round's cleanup, /kill, a despawn. */
-    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120)
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120, batch = "lifecycle")
     public void exitDroneRemoved(GameTestHelper helper) {
         exit(helper, "drone removed", c -> c.drone.discard(), true, false);
     }
 
-    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120)
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120, batch = "lifecycle")
     public void exitOperatorDeath(GameTestHelper helper) {
         exit(helper, "operator death", c -> c.player.kill(), true, true);
     }
 
-    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120)
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120, batch = "lifecycle")
     public void exitOperatorDisconnect(GameTestHelper helper) {
         exit(helper, "operator disconnect", c -> disconnect(c.player), false, true);
     }
 
-    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120)
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120, batch = "lifecycle")
     public void exitDimensionChange(GameTestHelper helper) {
         exit(helper, "dimension change", c -> {
             ServerLevel nether = helper.getLevel().getServer().getLevel(Level.NETHER);
@@ -124,7 +124,7 @@ public final class SessionLifecycleGameTest implements FabricGameTest {
      * link and no video), held Space does not raise the throttle in failsafe, and once the jammer is
      * off the pilot flies again without touching the monitor.
      */
-    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200)
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200, batch = "lifecycle")
     public void linkLossKeepsViewNoStuckInput(GameTestHelper helper) {
         MockPilotClient client = PilotResyncGameTest.fly(helper, 64);
         FpvDrone drone = (FpvDrone) client.drone;
@@ -167,7 +167,7 @@ public final class SessionLifecycleGameTest implements FabricGameTest {
      * No session survives the disconnect; switching the monitor on again gives one new session on the
      * same drone, never a second drone.
      */
-    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 160)
+    @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 160, batch = "lifecycle")
     public void reconnectNoSecondSessionOrDrone(GameTestHelper helper) {
         MockPilotClient client = PilotResyncGameTest.fly(helper, 64);
         ServerLevel level = helper.getLevel();

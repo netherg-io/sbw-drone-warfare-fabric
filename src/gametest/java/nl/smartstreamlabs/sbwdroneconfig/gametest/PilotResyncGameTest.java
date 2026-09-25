@@ -38,6 +38,9 @@ public final class PilotResyncGameTest implements FabricGameTest {
         ChunkPos target = new ChunkPos(BlockPos.containing(drone.getX() + metres, drone.getY(), drone.getZ()));
         helper.runAfterDelay(20, () -> level.setChunkForced(target.x, target.z, true));
         helper.runAfterDelay(40, () -> {
+            boolean loaded = level.getChunkSource().getChunkNow(target.x, target.z) != null;
+            if (!loaded || client.accepted <= 20) level.setChunkForced(target.x, target.z, false);
+            helper.assertTrue(loaded, "the target area must be loaded before the jump");
             helper.assertTrue(client.accepted > 20, "input must flow before the jump: " + client.summary());
             drone.teleportTo(drone.getX() + metres, drone.getY(), drone.getZ());
         });
@@ -151,6 +154,8 @@ public final class PilotResyncGameTest implements FabricGameTest {
         pilot.setItemInHand(InteractionHand.MAIN_HAND, monitor);
         drone.claimBy(pilot);
         pilot.getMainHandItem().use(level, pilot, InteractionHand.MAIN_HAND);
+        helper.runAfterDelay(10, () -> helper.assertTrue(nl.smartstreamlabs.sbwdroneconfig.RemoteView.viewpoint(pilot) == drone,
+                "the pilot must have a remote view (at most " + 16 + " at once)"));
         return client;
     }
 }
