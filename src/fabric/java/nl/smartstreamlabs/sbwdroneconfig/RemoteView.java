@@ -1,5 +1,8 @@
 package nl.smartstreamlabs.sbwdroneconfig;
 
+import com.atsuishio.superbwarfare.control.DroneControlAccess;
+import com.atsuishio.superbwarfare.entity.vehicle.DroneEntity;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -7,6 +10,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -25,7 +29,12 @@ import java.util.UUID;
  * are measured from it ({@code TrackedEntityMixin}). The body stays where it is and stays vulnerable;
  * other players track it as before. A ticket loads the pilot's view radius (capped) around the drone
  * and expires on its own {@link #TICKET_TICKS} after the last refresh, so nothing leaks when the
- * session ends, the drone dies or the server stops.
+ * session ends, the drone dies or the server stops. A second, smaller ticket sits where the drone
+ * will be {@link #LOOK_AHEAD_TICKS} ahead, so fast flight does not outrun chunk loading. Tickets are
+ * only placed inside the world border: this is the whole world loading a piloted drone causes.
+ * A drone that jumps into loaded chunks which are not ticking (a teleport, a lag correction) is
+ * re-centred from here, since it no longer ticks itself; one that jumps into unloaded chunks leaves
+ * the pilot's client, and SBW ends the monitor session as for any unloaded drone.
  */
 public final class RemoteView {
     /** Chunk radius loaded around a piloted drone; the pilot's view distance caps it too. */
@@ -37,6 +46,10 @@ public final class RemoteView {
     static final int REFRESH_TICKS = 10;
     /** After a view ends the body's surroundings are re-paired for this long, while its chunks come back. */
     static final int SETTLE_TICKS = 60;
+    /** Fast flight: the chunk this far ahead along the velocity is loaded too (40 m/s = 5 chunks), capped. */
+    static final int LOOK_AHEAD_TICKS = 40;
+    static final double LOOK_AHEAD_MAX = 96;
+    static final int LOOK_AHEAD_RADIUS = 2;
 
     static final TicketType<Integer> TICKET = TicketType.create("sbwdroneconfig_fpv_view", Integer::compare, TICKET_TICKS);
 
@@ -68,7 +81,16 @@ public final class RemoteView {
         }
         view.lastPiloted = now;
         int radius = loadRadius(level.getServer().getPlayerList().getViewDistance());
-        level.getChunkSource().addRegionTicket(TICKET, drone.chunkPosition(), radius, drone.getId());
+        ticket(level, drone.position(), radius, drone.getId());
+        Vec3 step = drone.getDeltaMovement().scale(LOOK_AHEAD_TICKS);
+        if (step.lengthSqr() > LOOK_AHEAD_MAX * LOOK_AHEAD_MAX) step = step.normalize().scale(LOOK_AHEAD_MAX);
+        ticket(level, drone.position().add(step), LOOK_AHEAD_RADIUS, drone.getId());
+    }
+
+    private static void ticket(ServerLevel level, Vec3 at, int radius, int id) {
+        if (level.getWorldBorder().isWithinBounds(at.x, at.z)) {
+            level.getChunkSource().addRegionTicket(TICKET, new ChunkPos(BlockPos.containing(at)), radius, id);
+        }
     }
 
     static int loadRadius(int serverViewDistance) {
@@ -107,6 +129,11 @@ public final class RemoteView {
             if (player == null) {
                 it.remove();
                 continue;
+            }
+            // Still flown but not ticking (moved into a loaded, non-ticking chunk): bring its chunks back.
+            if (!fresh(view.lastPiloted, now) && view.drone instanceof DroneEntity drone && !drone.isRemoved()
+                    && DroneControlAccess.INSTANCE.canUse(player, drone, true)) {
+                pilot(player, drone);
             }
             if (!live(view, player)) {
                 it.remove();
