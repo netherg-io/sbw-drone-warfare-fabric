@@ -100,7 +100,10 @@ public final class FuzeGameTest implements FabricGameTest {
             });
         }
         helper.runAfterDelay(at + SHOT_TICKS - 3, () -> {
-            List<Vec3> blasts = EXPLOSIONS.subList(before[0], EXPLOSIONS.size());
+            // Only this lane's blasts; anything else that explodes meanwhile is not this shot.
+            net.minecraft.world.phys.AABB lane = new net.minecraft.world.phys.AABB(helper.absoluteVec(new Vec3(x - 3, y - 3, START_Z - 3)),
+                    helper.absoluteVec(new Vec3(x + 4, y + 4, OBSTACLE_Z + 5)));
+            List<Vec3> blasts = EXPLOSIONS.subList(before[0], EXPLOSIONS.size()).stream().filter(lane::contains).toList();
             double obstacle = helper.absoluteVec(new Vec3(0, 0, block == null ? OBSTACLE_Z : OBSTACLE_Z)).z;
             String where = blasts.isEmpty() ? "-" : String.format("%.2f", blasts.get(0).z - obstacle);
             String name = block == null ? "zombie" : block.getDescriptionId().replace("block.minecraft.", "") + (mobBehind ? "+zombie behind" : "");
