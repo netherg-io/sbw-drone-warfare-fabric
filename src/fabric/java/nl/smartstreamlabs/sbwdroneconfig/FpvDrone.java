@@ -409,6 +409,11 @@ public final class FpvDrone extends DroneEntity {
         return level().isClientSide() && getId() == viewedId ? Mth.lerp(tickDelta, camYawO, camYaw) : super.getYaw(tickDelta);
     }
 
+    /** Client: the local player is flying this drone through his monitor, so he listens from inside it. */
+    public boolean viewedHere() {
+        return level().isClientSide() && getId() == viewedId;
+    }
+
     public float cameraRoll(float tickDelta) {
         return Mth.lerp(tickDelta, camRollO, camRoll);
     }
