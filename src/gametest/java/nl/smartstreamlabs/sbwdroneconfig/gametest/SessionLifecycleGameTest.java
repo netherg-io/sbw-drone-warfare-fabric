@@ -5,7 +5,6 @@ import com.atsuishio.superbwarfare.tools.NBTTool;
 import com.mojang.authlib.GameProfile;
 import com.mojang.logging.LogUtils;
 import io.netty.channel.embedded.EmbeddedChannel;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTest;
@@ -14,14 +13,10 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.DisconnectionDetails;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.PacketFlow;
-import net.minecraft.server.level.ChunkMap;
 import net.minecraft.server.level.ChunkTrackingView;
-import net.minecraft.server.level.DistanceManager;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.server.level.Ticket;
 import net.minecraft.server.network.CommonListenerCookie;
-import net.minecraft.util.SortedArraySet;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.ItemStack;
@@ -34,7 +29,6 @@ import nl.smartstreamlabs.sbwdroneconfig.FpvDrone;
 import nl.smartstreamlabs.sbwdroneconfig.RemoteView;
 import org.slf4j.Logger;
 
-import java.lang.reflect.Field;
 import java.util.function.Consumer;
 
 /**
@@ -92,8 +86,8 @@ public final class SessionLifecycleGameTest implements FabricGameTest {
         DroneEntity drone = (DroneEntity) client.drone;
         int[] acceptedAtExit = {0};
         helper.runAfterDelay(TRIGGER, () -> {
-            helper.assertTrue(client.accepted > 10 && tickets(level, drone) > 0,
-                    "a live flight first: tickets=" + tickets(level, drone) + " " + client.summary());
+            helper.assertTrue(client.accepted > 10 && MockPilotClient.tickets(level, drone) > 0,
+                    "a live flight first: tickets=" + MockPilotClient.tickets(level, drone) + " " + client.summary());
             acceptedAtExit[0] = client.accepted;
             trigger.accept(client);
         });
@@ -105,7 +99,7 @@ public final class SessionLifecycleGameTest implements FabricGameTest {
             int acceptedAfter = client.accepted - acceptedAtExit[0];
             boolean viewAtBody = !online || RemoteView.viewpoint(pilot) == null && pilot.getChunkTrackingView() instanceof ChunkTrackingView.Positioned v
                     && v.center().equals(pilot.chunkPosition());
-            int tickets = tickets(level, drone);
+            int tickets = MockPilotClient.tickets(level, drone);
             long drones = level.getEntities(DroneWarfare.FPV, e -> true).size();
             LOG.info("FPV-EXIT {}: cameraReset={} monitorUsing={} session={} inputsAcceptedAfter={} viewAtBody={} droneTickets={} fpvInWorld={} ({})",
                     name, client.resetCamera, using, session, acceptedAfter, viewAtBody, tickets, drones, client.summary());
@@ -220,29 +214,5 @@ public final class SessionLifecycleGameTest implements FabricGameTest {
         new EmbeddedChannel(connection);
         level.getServer().getPlayerList().placeNewPlayer(connection, player, cookie);
         return player;
-    }
-
-    /** Chunk tickets held for this drone: the addon's view ticket and SBW's per-vehicle keep-loaded ones. */
-    static int tickets(ServerLevel level, Entity drone) {
-        try {
-            Field dm = ChunkMap.class.getDeclaredField("distanceManager");
-            dm.setAccessible(true);
-            Field all = DistanceManager.class.getDeclaredField("tickets");
-            all.setAccessible(true);
-            Field key = Ticket.class.getDeclaredField("key");
-            key.setAccessible(true);
-            @SuppressWarnings("unchecked")
-            var map = (Long2ObjectOpenHashMap<SortedArraySet<Ticket<?>>>) all.get(dm.get(level.getChunkSource().chunkMap));
-            int n = 0;
-            for (SortedArraySet<Ticket<?>> set : map.values()) {
-                for (Ticket<?> t : set) {
-                    if (Integer.valueOf(drone.getId()).equals(key.get(t))
-                            && (t.getType().toString().equals("sbwdroneconfig_fpv_view") || t.getType().toString().equals("post_teleport"))) n++;
-                }
-            }
-            return n;
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException(e);
-        }
     }
 }

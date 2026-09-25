@@ -7,5 +7,6 @@
   "EngineSound": "superbwarfare:drone_engine",
   "Type": "Drone",
   "HasLowHealthWarning": false,
-  "SelfHurtPercent": 0
+  "SelfHurtPercent": 0,
+  "KeepChunkLoaded": false
 }
