@@ -9,7 +9,8 @@
     "fabric-gametest": [
       "nl.smartstreamlabs.sbwdroneconfig.gametest.PilotViewGameTest",
       "nl.smartstreamlabs.sbwdroneconfig.gametest.FpvStrikeGameTest",
-      "nl.smartstreamlabs.sbwdroneconfig.gametest.PilotResyncGameTest"
+      "nl.smartstreamlabs.sbwdroneconfig.gametest.PilotResyncGameTest",
+      "nl.smartstreamlabs.sbwdroneconfig.gametest.SessionLifecycleGameTest"
     ]
   },
   "mixins": [

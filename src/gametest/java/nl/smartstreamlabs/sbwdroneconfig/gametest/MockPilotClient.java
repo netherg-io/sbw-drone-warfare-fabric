@@ -32,6 +32,8 @@ final class MockPilotClient {
     final Entity drone;
     private final EmbeddedChannel channel;
     boolean hasDrone;
+    /** SBW movement keys held on the client (bit 4 = Space: throttle up). */
+    short keys;
     int adds, removes, accepted, rejected, resetCamera;
     /** Ticks since the drone last (re)appeared on the client, and ticks since an input was last accepted. */
     int sinceAdd, sinceAccepted;
@@ -71,6 +73,7 @@ final class MockPilotClient {
         DroneEntity target = DroneControlAccess.INSTANCE.resolve(player);
         boolean ok = target == drone && DroneControlAccess.INSTANCE.acceptsSequence(target, session, sequence);
         if (ok) {
+            target.processInput(keys);
             accepted++;
             sinceAccepted = 0;
             rejectedRun = 0;
