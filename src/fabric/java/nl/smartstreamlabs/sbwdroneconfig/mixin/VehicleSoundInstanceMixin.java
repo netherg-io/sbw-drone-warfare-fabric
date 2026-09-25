@@ -48,6 +48,8 @@ abstract class VehicleSoundInstanceMixin extends AbstractTickableSoundInstance {
         Vec3 at = new Vec3(x, y, z);
         double distance = at.distanceTo(ear);
         double closing = Double.isNaN(sbwdroneconfig$lastDistance) ? 0 : (sbwdroneconfig$lastDistance - distance) * 20;
+        // A camera jump (respawn, teleport, leaving a monitor view) is not motion: no Doppler blip for it.
+        if (Math.abs(closing) > FpvEngineSound.MAX_CLOSING) closing = 0;
         sbwdroneconfig$lastDistance = distance;
         pitch = (float) (tone * FpvEngineSound.doppler(closing));
         if (sbwdroneconfig$age++ % FpvEngineSound.REEVALUATE_TICKS == 0) {

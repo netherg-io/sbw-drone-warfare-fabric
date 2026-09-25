@@ -25,6 +25,8 @@ import java.lang.reflect.Method;
  */
 public final class FpvEngineSound {
     public static final int REEVALUATE_TICKS = 5;
+    /** Faster closing than this, m/s, is a jump of the camera, not relative motion (a 5" quad tops out near 50 m/s). */
+    public static final double MAX_CLOSING = 150;
     /** Called reflectively, so the addon neither needs nor breaks without Sound Physics. */
     private static final @Nullable Method SOUND_PHYSICS = lookUpSoundPhysics();
 
