@@ -112,6 +112,10 @@ public final class FpvDrone extends DroneEntity {
         super(type, level);
         this.fibre = fibre;
         this.link = new FpvLink(fibre);
+        // Entity Culling (in the Blockfield pack) skips client ticks of entities out of the camera, and
+        // SBW's vehicles move on a client only in their tick: a drone behind an observer stood still,
+        // motor sound included. Entities that are never culled are always ticked.
+        noCulling = true;
     }
 
     @Override public Item droneItem() { return fibre ? DroneWarfare.FPV_FIBRE_ITEM : DroneWarfare.FPV_ITEM; }
