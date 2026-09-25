@@ -278,6 +278,20 @@ public final class FpvDrone extends DroneEntity {
         setBodyXRot(QuadFlightModel.sbwBodyPitch(pitchPrev, pitch));
     }
 
+    /**
+     * SBW's client keeps the input sequence on its drone entity object. When the drone leaves the
+     * pilot's client and comes back (a teleport, or a jump past his loaded chunks under lag), the
+     * new object starts again at 0 and the server would reject every input until the monitor is
+     * toggled. A fresh session restarts the sequence on both ends; the held sticks stay.
+     */
+    @Override
+    public void startSeenByPlayer(ServerPlayer player) {
+        super.startSeenByPlayer(player);
+        if (!"none".equals(entityData.get(SESSION)) && player.getStringUUID().equals(entityData.get(CONTROLLER))) {
+            beginControlSession();
+        }
+    }
+
     /** The attitude to show: the model's on the server, the smoothed synced one on a client. */
     private Quaternionf attitude() {
         return level().isClientSide() && clientAttitude != null ? clientAttitude : entityData.get(ATTITUDE);
