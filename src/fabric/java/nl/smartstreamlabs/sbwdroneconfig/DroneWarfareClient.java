@@ -22,6 +22,9 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 public final class DroneWarfareClient implements ClientModInitializer {
+    /** The local player's main hand held a monitor in use (any SBW drone) at the last client tick. */
+    private static boolean monitorView;
+
     @Override public void onInitializeClient() {
         EntityRendererRegistry.register(DroneWarfare.FPV, DroneRenderer::new);
         EntityRendererRegistry.register(DroneWarfare.FPV_FIBRE, DroneRenderer::new);
@@ -30,14 +33,20 @@ public final class DroneWarfareClient implements ClientModInitializer {
         // Leaving the server while flying: the server can no longer send ResetCameraTypeMessage, and the
         // monitor's third-person camera type would stay in the options into the next join.
         ClientPlayConnectionEvents.DISCONNECT.register((handler, mc) -> {
-            if (FpvDrone.viewedId == -1) return;
             FpvDrone.viewedId = -1;
-            mc.execute(() -> mc.options.setCameraType(ClientEventHandler.lastCameraType != null
-                    ? ClientEventHandler.lastCameraType : CameraType.FIRST_PERSON));
+            if (!monitorView) return;
+            monitorView = false;
+            mc.execute(() -> restoreCamera(mc));
         });
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             FpvDrone drone = viewedDrone();
             FpvDrone.viewedId = drone == null ? -1 : drone.getId();
+            if (mc.player == null) return;
+            // SBW restores the camera from the monitor item's own tick or use; a monitor taken away in flight
+            // (a game mode clearing the inventory at round end or room close) left the third-person type set.
+            boolean using = NBTTool.getTag(mc.player.getMainHandItem()).getBoolean(MonitorItem.USING);
+            if (monitorView && !using) restoreCamera(mc);
+            monitorView = using;
         });
         HudRenderCallback.EVENT.register((graphics, tickCounter) -> {
             Minecraft mc = Minecraft.getInstance();
@@ -102,6 +111,11 @@ public final class DroneWarfareClient implements ClientModInitializer {
             }
         }
         if (lines != null) buffers.endBatch(RenderType.lines());
+    }
+
+    /** The camera type from before the monitor view, as SBW's own monitor exit sets it. */
+    private static void restoreCamera(Minecraft mc) {
+        mc.options.setCameraType(ClientEventHandler.lastCameraType != null ? ClientEventHandler.lastCameraType : CameraType.FIRST_PERSON);
     }
 
     /** The FPV drone the local player is flying through an active SBW monitor, or null. */
