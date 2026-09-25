@@ -53,7 +53,10 @@ public final class SessionLifecycleGameTest implements FabricGameTest {
 
     @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120)
     public void exitDroneDestroyed(GameTestHelper helper) {
-        exit(helper, "drone destroyed", c -> c.drone.hurt(helper.getLevel().damageSources().generic(), 100), true, false);
+        exit(helper, "drone destroyed", c -> {
+            ServerPlayer shooter = helper.makeMockServerPlayerInLevel();
+            c.drone.hurt(helper.getLevel().damageSources().playerAttack(shooter), 2);
+        }, true, false);
     }
 
     /** Removal without damage: a round's cleanup, /kill, a despawn. */
@@ -100,7 +103,7 @@ public final class SessionLifecycleGameTest implements FabricGameTest {
             boolean viewAtBody = !online || RemoteView.viewpoint(pilot) == null && pilot.getChunkTrackingView() instanceof ChunkTrackingView.Positioned v
                     && v.center().equals(pilot.chunkPosition());
             int tickets = MockPilotClient.tickets(level, drone);
-            long drones = level.getEntities(DroneWarfare.FPV, e -> true).size();
+            long drones = owned(level, pilot);
             LOG.info("FPV-EXIT {}: cameraReset={} monitorUsing={} session={} inputsAcceptedAfter={} viewAtBody={} droneTickets={} fpvInWorld={} ({})",
                     name, client.resetCamera, using, session, acceptedAfter, viewAtBody, tickets, drones, client.summary());
             helper.assertTrue(!cameraReset || client.resetCamera >= 1, name + ": the client must be told to reset its camera");
@@ -183,7 +186,7 @@ public final class SessionLifecycleGameTest implements FabricGameTest {
             sessions[2] = drone.getEntityData().get(DroneEntity.SESSION);
         });
         helper.runAfterDelay(TRIGGER + 60, () -> {
-            long drones = level.getEntities(DroneWarfare.FPV, e -> true).size();
+            long drones = owned(level, back[0]);
             boolean flying = com.atsuishio.superbwarfare.control.DroneControlAccess.INSTANCE.resolve(back[0]) == drone;
             LOG.info("FPV-RECONNECT session before={} after reconnect={} after monitor on={} fpvInWorld={} controlsSameDrone={}",
                     sessions[0], sessions[1], sessions[2], drones, flying);
@@ -200,6 +203,11 @@ public final class SessionLifecycleGameTest implements FabricGameTest {
         var tag = new net.minecraft.nbt.CompoundTag();
         tag.putBoolean("Active", on);
         return tag;
+    }
+
+    /** FPV drones of this operator in the level (other tests share it). */
+    static long owned(ServerLevel level, ServerPlayer operator) {
+        return level.getEntities(DroneWarfare.FPV, e -> operator.getStringUUID().equals(e.getEntityData().get(DroneEntity.CONTROLLER))).size();
     }
 
     static void disconnect(ServerPlayer player) {
