@@ -13,7 +13,10 @@ This repository is a fork of:
 The `main` branch mirrors upstream unchanged. All Fabric port work lives on
 the `fabric-1.21.1` branch.
 
-Later upstream source (not yet merged here):
+Source base: the Fabric port is written on top of this fork (upstream 1.0.1 above). The later
+upstream tree below was used only as a behavioural reference; no code or assets were imported from it.
+
+Later upstream source (reference only, not merged):
   https://github.com/SmartStreamLabs/SBW-Drone-Warfare-Updated-8-28-2026
   commit 9eb3b598083838facc16022738aa06ad48fbfb04 (2026-08-28), AGPL-3.0,
   NeoForge 1.21.1 / version 1.0.6 sources are in SBW-Drone-Range-1.20.1.
@@ -32,6 +35,16 @@ same AGPL-3.0 terms. Per AGPL-3.0 §5(a), changes are recorded with dates:
   2026-09-24  Added isolated Fabric build, registry and FPV prototype based on
               public superbwarfare-fabric bf18. Forge sources/resources are not
               included in the Fabric jar. See docs/PROVENANCE.md.
+
+  2026-09-24  bf1 and before: server-side quadcopter flight (Angle/Acro), frame-locked
+              FPV camera, payload mass, battery, armed contact fuze, radio link with
+              obstruction and jamming, fibre-optic variant, motor sound.
+  2026-09-25  bf2-bf4: pilot keeps the drone beyond view distance, 1 HP frame and damage
+              attribution, observer attitude smoothing, session resync and lifecycle
+              cleanup (disconnect, round end, room close), own item icons, fibre cut by
+              players and spool reuse, Doppler and Sound Physics muffling, drones exempt
+              from Entity Culling, camera restored when the monitor is taken away.
+  2026-09-25  Built against superbwarfare-fabric bf19.
 
 The full modification history is the git history of the `fabric-1.21.1` branch.
 
