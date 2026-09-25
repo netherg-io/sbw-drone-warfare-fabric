@@ -76,26 +76,22 @@ public final class PilotResyncGameTest implements FabricGameTest {
     }
 
     /**
-     * A jump into unloaded chunks: the drone is no longer in the world anyone can see, so the flight
-     * ends as for an unloaded drone: the client resets its camera and no input is taken any more.
+     * A jump into unloaded chunks: the view ticket follows the drone there, so the chunks load, the
+     * drone ticks on and comes back to the pilot's client, and the flight goes on.
      */
     @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 200)
-    public void pilotTeleportIntoUnloadedAreaEndsCleanly(GameTestHelper helper) {
+    public void pilotTeleportIntoUnloadedAreaKeepsFlying(GameTestHelper helper) {
         MockPilotClient client = fly(helper, 64);
         FpvDrone drone = (FpvDrone) client.drone;
-        int[] acceptedAtJump = {0};
-        helper.runAfterDelay(40, () -> {
-            acceptedAtJump[0] = client.accepted;
-            drone.teleportTo(drone.getX() + 600, drone.getY(), drone.getZ());
-        });
-        helper.runAfterDelay(100, () -> {
-            boolean using = com.atsuishio.superbwarfare.tools.NBTTool.getTag(client.player.getMainHandItem()).getBoolean("Using");
-            int after = client.accepted - acceptedAtJump[0];
-            int tickets = MockPilotClient.tickets(helper.getLevel(), drone);
-            LOG.info("FPV-RESYNC teleport 600 m into unloaded chunks: cameraReset={} monitorUsing={} inputsAcceptedAfter={} droneTickets={} ({})",
-                    client.resetCamera, using, after, tickets, client.summary());
-            helper.assertTrue(client.resetCamera >= 1 && !using && after <= 1 && tickets == 0,
-                    "the flight must end cleanly: " + client.summary());
+        int[] ticks = new int[2];
+        helper.runAfterDelay(40, () -> drone.teleportTo(drone.getX() + 600, drone.getY(), drone.getZ()));
+        helper.runAfterDelay(60, () -> ticks[0] = drone.tickCount);
+        helper.runAfterDelay(140, () -> {
+            ticks[1] = drone.tickCount;
+            LOG.info("FPV-RESYNC teleport 600 m into unloaded chunks: drone ticks in 80 ticks={} back on the client={} input accepted now={} ({})",
+                    ticks[1] - ticks[0], client.hasDrone, client.sinceAccepted <= 2, client.summary());
+            helper.assertTrue(ticks[1] - ticks[0] > 60, "the drone must be loaded and ticking: " + (ticks[1] - ticks[0]));
+            helper.assertTrue(client.hasDrone && client.sinceAccepted <= 2, "input must reach the drone: " + client.summary());
             drone.discard();
             helper.succeed();
         });
