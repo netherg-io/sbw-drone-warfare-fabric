@@ -13,7 +13,7 @@ A Fabric 1.21.1 addon to [Superb Warfare](https://github.com/netherg-io/superbwa
 | Minecraft | 1.21.1 |
 | Fabric Loader | 0.19.3 |
 | Fabric API | 0.116.15+1.21.1 |
-| Superb Warfare (Fabric fork) | [bf18](https://github.com/netherg-io/superbwarfare-fabric/releases/tag/bf18) |
+| Superb Warfare (Fabric fork) | [bf19](https://github.com/netherg-io/superbwarfare-fabric/releases/tag/bf19) |
 | GeckoLib | 4.7.5 |
 | Fabric Language Kotlin | 1.13.7+kotlin.2.2.21 |
 | Java | 21 |
@@ -21,7 +21,7 @@ A Fabric 1.21.1 addon to [Superb Warfare](https://github.com/netherg-io/superbwa
 
 ## Install
 
-Put the release jar on the dedicated server **and** every client, next to Superb Warfare bf18 and its dependencies (Porting Lib, Forge Config API Port, Accessories, SimpleBedrockModel; see SBW's release notes). Blockfield players get it through the modpack; nobody copies jars by hand there. Sound Physics Remastered is optional; without it the addon muffles the motors behind blocks itself.
+Put the release jar on the dedicated server **and** every client, next to Superb Warfare bf19 and its dependencies (Porting Lib, Forge Config API Port, Accessories, SimpleBedrockModel; see SBW's release notes). Blockfield players get it through the modpack; nobody copies jars by hand there. Sound Physics Remastered is optional; without it the addon muffles the motors behind blocks itself.
 
 Items: `sbwdroneconfig:cubed_fpv_drone` (radio FPV), `sbwdroneconfig:fibre_fpv_drone` (fibre FPV), `sbwdroneconfig:signal_jammer`. Right-click a block to place a drone, link a Superb Warfare monitor to it (right-click the drone with the monitor), then use the monitor to fly.
 
@@ -115,7 +115,7 @@ Game tests (each logs one `FPV-…` line with its numbers):
 
 Releases: a tag `bfN` on `fabric-1.21.1` (pushed, or created by running the Release workflow manually on `fabric-1.21.1` with input `tag`) runs `.github/workflows/release.yml`, which publishes `sbw-drone-warfare-fabric-<version>-bfN.jar`, its sources jar and `SHA256SUMS` as a GitHub Release; the tag is the corresponding source. Blockfield pins a release with `scripts/bump-fork.sh sbwdrone bfN` in blockfield-modpack.
 
-The wrapper downloads Gradle 8.14.2 with a pinned checksum. Loom 1.11.8 uses Mojang + Parchment 2024.11.17 mappings. Superb Warfare [bf18](https://github.com/netherg-io/superbwarfare-fabric/releases/tag/bf18) is downloaded from its public release and SHA-256 verified by Gradle. CI builds without repository secrets and uploads both jar and sources.
+The wrapper downloads Gradle 8.14.2 with a pinned checksum. Loom 1.11.8 uses Mojang + Parchment 2024.11.17 mappings. Superb Warfare [bf19](https://github.com/netherg-io/superbwarfare-fabric/releases/tag/bf19) is downloaded from its public release and SHA-256 verified by Gradle. CI builds without repository secrets and uploads both jar and sources.
 
 ## Multiplayer regression scenarios
 

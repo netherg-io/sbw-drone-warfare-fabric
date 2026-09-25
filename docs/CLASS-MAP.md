@@ -1,8 +1,8 @@
 # Port map
 
-Names below refer to the preserved 1.0.1 source in `src/main/java/nl/smartstreamlabs/sbwdroneconfig`. Fabric classes live in `src/fabric/java` and the dependency is pinned to SBW bf18. “Present” does not imply runtime acceptance of the final addon.
+Names below refer to the preserved 1.0.1 source in `src/main/java/nl/smartstreamlabs/sbwdroneconfig`. Fabric classes live in `src/fabric/java` and the dependency is pinned to SBW bf19. “Present” does not imply runtime acceptance of the final addon.
 
-| System | Upstream | Fabric SBW bf18 | Required addon work |
+| System | Upstream | Fabric SBW bf19 | Required addon work |
 |---|---|---|---|
 | Entity/deployer | `CubedFpvDroneEntity`, `CubedFpvDroneItem`, `AddonEntities`, `AddonItems` | `DroneEntity`, `AbstractDeployerItem` | `FpvDrone` (own flight, SBW lifecycle); upstream 1 HP/damage multiplier and crowbar pickup not ported |
 | Session/packets | `DroneControlEvents`, `AddonNetwork`, operator visibility messages | `control/DroneControlSession`, `DroneControlEvents`, owner/generation/sequence checks | Reuse the server-authoritative lifecycle; validate new inputs against it |
