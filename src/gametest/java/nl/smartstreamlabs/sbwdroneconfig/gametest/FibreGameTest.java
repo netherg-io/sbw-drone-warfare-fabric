@@ -38,6 +38,8 @@ public final class FibreGameTest implements FabricGameTest {
         FpvDrone drone = DroneWarfare.FPV_FIBRE.create(level);
         Vec3 start = helper.absoluteVec(new Vec3(2.5, 3, 2.5));
         drone.moveTo(start.x, start.y, start.z, 0, 0);
+        // The operator stands at the spool end; SBW blows up a drone whose operator is out of range.
+        operator.teleportTo(level, start.x - 1, start.y - 2, start.z, 0, 0);
         level.addFreshEntity(drone);
         drone.claimBy(operator);
         helper.onEachTick(() -> {
