@@ -16,7 +16,7 @@ import java.util.Collection;
 @Mixin(GameTestRegistry.class)
 abstract class GameTestRegistryMixin {
     private static final java.util.Set<String> OURS = java.util.Set.of(
-            "pilotviewgametest", "fpvstrikegametest", "pilotresyncgametest", "sessionlifecyclegametest");
+            "pilotviewgametest", "fpvstrikegametest", "pilotresyncgametest", "sessionlifecyclegametest", "fuzegametest");
 
     @Inject(method = "getAllTestFunctions", at = @At("RETURN"), cancellable = true)
     private static void sbwdroneconfig$onlyOurTests(CallbackInfoReturnable<Collection<TestFunction>> cir) {
