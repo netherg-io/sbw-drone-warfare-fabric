@@ -297,30 +297,46 @@ public final class FpvDrone extends DroneEntity {
         }
     }
 
+    /** Loaded fibre drones, server side (kept by DroneWarfare from the entity load events): what a swing may cut. */
+    static final java.util.Set<FpvDrone> LOADED_FIBRE = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
     /**
-     * A player's swing (any left click) cuts the laid fibre of any fibre drone within his reach, as a
-     * knife or a boot through the line would; nothing in between may block it. The nearest crossing
-     * along the swing is cut. Called for every server-side swing, so it only walks loaded fibre drones.
+     * A player's arm swing (attacking, mining, placing: every swing a client reports) cuts the laid fibre
+     * of a fibre drone within his reach, as a blade or a boot through the line would, operator and
+     * teammates included; nothing solid may be in between. The nearest crossing along the swing is cut.
      */
     public static void swing(ServerPlayer player) {
-        if (player.isSpectator()) return;
+        if (LOADED_FIBRE.isEmpty() || player.isSpectator() || !player.isAlive()) return;
         ServerLevel level = player.serverLevel();
         Vec3 eye = player.getEyePosition();
-        double reach = player.entityInteractionRange();
-        Vec3 end = eye.add(player.getLookAngle().scale(reach));
-        HitResult wall = level.clip(new ClipContext(eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
-        if (wall.getType() != HitResult.Type.MISS) end = wall.getLocation();
-        for (FpvDrone drone : level.getEntities(net.minecraft.world.level.entity.EntityTypeTest.forClass(FpvDrone.class),
-                d -> d.fibre && d.isAlive() && !d.link.snapped)) {
-            Vec3 cut = drone.link.cut(eye, end, drone.position().add(0, drone.getBbHeight() / 2, 0), FIBRE_CUT_REACH);
-            if (cut == null) continue;
-            drone.entityData.set(CABLE, drone.link.packCable());
-            drone.entityData.set(LINK_QUALITY, 0f);
-            level.playSound(null, cut.x, cut.y, cut.z, net.minecraft.sounds.SoundEvents.SHEEP_SHEAR, net.minecraft.sounds.SoundSource.PLAYERS, 0.8f, 1.4f);
-            Player operator = drone.getController();
-            if (operator != null) operator.displayClientMessage(Component.literal("FPV: FIBRE CUT").withStyle(ChatFormatting.RED), true);
-            return;
+        Vec3 end = eye.add(player.getLookAngle().scale(player.entityInteractionRange()));
+        FpvDrone hit = null;
+        double[] best = null;
+        for (FpvDrone drone : LOADED_FIBRE) {
+            if (drone.level() != level || !drone.isAlive()) continue;
+            double[] c = drone.link.crossing(eye, end, drone.position().add(0, drone.getBbHeight() / 2, 0), FIBRE_CUT_REACH);
+            if (c != null && (best == null || c[0] < best[0])) {
+                best = c;
+                hit = drone;
+            }
         }
+        if (hit == null) return;
+        Vec3 at = new Vec3(best[2], best[3], best[4]);
+        // Measured to the fibre itself, so a pane or a door just in front of it still protects it.
+        if (level.clip(new ClipContext(eye, at, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player)).getType() != HitResult.Type.MISS) return;
+        hit.link.cut(best);
+        hit.entityData.set(CABLE, hit.link.packCable());
+        hit.entityData.set(LINK_QUALITY, 0f);
+        level.playSound(null, at.x, at.y, at.z, net.minecraft.sounds.SoundEvents.SHEEP_SHEAR, net.minecraft.sounds.SoundSource.PLAYERS, 0.8f, 1.4f);
+        Player operator = hit.getController();
+        if (operator != null) operator.displayClientMessage(Component.literal("FPV: FIBRE CUT").withStyle(ChatFormatting.RED), true);
+    }
+
+    /** Deployment from a picked-up fibre drone's item: the fibre it had already paid out, and nothing else from the item. */
+    void restoreSpool(double paidOut) {
+        if (!fibre || !Double.isFinite(paidOut)) return;
+        link.paidOut = Math.clamp(paidOut, 0, FpvLink.SPOOL_M);
+        entityData.set(FIBRE_M, (float) link.paidOut);
     }
 
     /**
@@ -331,7 +347,8 @@ public final class FpvDrone extends DroneEntity {
     @Override
     public net.minecraft.world.InteractionResult interact(Player player, net.minecraft.world.InteractionHand hand) {
         ItemStack held = player.getMainHandItem();
-        if (!fibre || !player.isShiftKeyDown() || link.paidOut <= 0
+        // The synced paid-out length, so the client predicts the same branch as the server.
+        if (!fibre || !player.isShiftKeyDown() || fibrePaidOut() <= 0
                 || !(held.isEmpty() || held.is(ModTags.Items.TOOLS_CROWBAR))) {
             return super.interact(player, hand);
         }

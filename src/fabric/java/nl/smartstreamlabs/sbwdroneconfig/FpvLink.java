@@ -124,31 +124,38 @@ final class FpvLink {
     }
 
     /**
-     * A blade swung along {@code from}-{@code to} cuts the laid fibre (the cable points, then the free
-     * end up to the drone at {@code drone}) where it passes within {@code reach} of it; the nearest
-     * crossing along the swing counts. Returns the cut point, or null. The fibre then ends there:
-     * the link is gone for good, as when the spool runs out.
+     * Where a blade swung along {@code from}-{@code to} crosses the laid fibre (the cable points, then
+     * the free end up to the drone at {@code drone}) within {@code reach} of it: {position along the
+     * swing 0..1, cable index, x, y, z} of the nearest crossing along the swing, or null.
      */
-    @Nullable Vec3 cut(Vec3 from, Vec3 to, Vec3 drone, double reach) {
+    double @Nullable [] crossing(Vec3 from, Vec3 to, Vec3 drone, double reach) {
         if (!fibre || snapped || cable.isEmpty()) return null;
-        int best = -1;
-        double bestAlong = Double.MAX_VALUE;
-        Vec3 bestPoint = null;
+        double[] best = null;
         for (int i = 0; i < cable.size(); i++) {
             Vec3 a = cable.get(i), b = i + 1 < cable.size() ? cable.get(i + 1) : drone;
             double[] c = closest(from, to, a, b);
-            if (c[2] <= reach && c[0] < bestAlong) {
-                bestAlong = c[0];
-                best = i;
-                bestPoint = a.add(b.subtract(a).scale(c[1]));
+            if (c[2] <= reach && (best == null || c[0] < best[0])) {
+                Vec3 p = a.add(b.subtract(a).scale(c[1]));
+                best = new double[]{c[0], i, p.x, p.y, p.z};
             }
         }
-        if (best < 0) return null;
-        cable.subList(best + 1, cable.size()).clear();
-        cable.add(bestPoint);
+        return best;
+    }
+
+    /** Cuts the fibre at a {@link #crossing}: it now ends there, and the link is gone for good, as when the spool runs out. */
+    Vec3 cut(double[] crossing) {
+        Vec3 at = new Vec3(crossing[2], crossing[3], crossing[4]);
+        cable.subList((int) crossing[1] + 1, cable.size()).clear();
+        cable.add(at);
         snapped = true;
         framesMissed = FAILSAFE_TICKS;
-        return bestPoint;
+        return at;
+    }
+
+    /** Test shorthand: finds the crossing and cuts there. */
+    @Nullable Vec3 cut(Vec3 from, Vec3 to, Vec3 drone, double reach) {
+        double[] c = crossing(from, to, drone, reach);
+        return c == null ? null : cut(c);
     }
 
     /**

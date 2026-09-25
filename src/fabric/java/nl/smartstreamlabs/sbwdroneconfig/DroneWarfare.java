@@ -2,6 +2,7 @@ package nl.smartstreamlabs.sbwdroneconfig;
 
 import com.atsuishio.superbwarfare.item.misc.AbstractDeployerItem;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.core.Registry;
@@ -64,7 +65,7 @@ public final class DroneWarfare implements ModInitializer {
                 // A picked-up fibre drone brings its paid-out fibre back (FpvDrone.interact).
                 ItemStack stack = player.getMainHandItem().is(this) ? player.getMainHandItem() : player.getOffhandItem();
                 CustomData data = stack.get(DataComponents.ENTITY_DATA);
-                if (drone != null && data != null && stack.is(this)) EntityType.updateCustomEntityTag(level, player, drone, data);
+                if (drone != null && data != null && stack.is(this)) drone.restoreSpool(data.copyTag().getDouble(FpvLink.PAID_OUT_TAG));
                 return drone;
             }
 
@@ -88,6 +89,15 @@ public final class DroneWarfare implements ModInitializer {
 
     @Override public void onInitialize() {
         ServerTickEvents.END_SERVER_TICK.register(RemoteView::tick);
-        ServerLifecycleEvents.SERVER_STOPPED.register(server -> RemoteView.clear());
+        ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
+            if (entity instanceof FpvDrone drone && drone.fibre) FpvDrone.LOADED_FIBRE.add(drone);
+        });
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity, level) -> {
+            if (entity instanceof FpvDrone drone) FpvDrone.LOADED_FIBRE.remove(drone);
+        });
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            RemoteView.clear();
+            FpvDrone.LOADED_FIBRE.clear();
+        });
     }
 }

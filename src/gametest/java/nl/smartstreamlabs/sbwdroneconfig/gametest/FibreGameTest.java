@@ -31,12 +31,11 @@ public final class FibreGameTest implements FabricGameTest {
     private static final Logger LOG = LogUtils.getLogger();
 
     /** A fibre drone that has flown 40 m east at y+3, laying fibre. */
-    private static FpvDrone laid(GameTestHelper helper, ServerPlayer operator) {
+    private static FpvDrone laid(GameTestHelper helper, ServerPlayer operator, double z, Runnable[] unforce) {
         ServerLevel level = helper.getLevel();
-        Runnable unforce = MockPilotClient.forceChunks(helper, 0, 0, 46, 10);
-        helper.runAfterDelay(110, unforce::run);
+        unforce[0] = MockPilotClient.forceChunks(helper, 0, 0, 46, (int) z + 8);
         FpvDrone drone = DroneWarfare.FPV_FIBRE.create(level);
-        Vec3 start = helper.absoluteVec(new Vec3(2.5, 3, 2.5));
+        Vec3 start = helper.absoluteVec(new Vec3(2.5, 3, z));
         drone.moveTo(start.x, start.y, start.z, 0, 0);
         // The operator stands at the spool end; SBW blows up a drone whose operator is out of range.
         operator.teleportTo(level, start.x - 1, start.y - 2, start.z, 0, 0);
@@ -54,7 +53,8 @@ public final class FibreGameTest implements FabricGameTest {
     @GameTest(template = EMPTY_STRUCTURE, timeoutTicks = 120)
     public void fibreCutBySwing(GameTestHelper helper) {
         ServerPlayer operator = helper.makeMockServerPlayerInLevel();
-        FpvDrone drone = laid(helper, operator);
+        Runnable[] unforce = new Runnable[1];
+        FpvDrone drone = laid(helper, operator, 2.5, unforce);
         ServerPlayer far = helper.makeMockServerPlayerInLevel();
         ServerPlayer walled = helper.makeMockServerPlayerInLevel();
         ServerPlayer cutter = helper.makeMockServerPlayerInLevel();
@@ -75,6 +75,7 @@ public final class FibreGameTest implements FabricGameTest {
             lq[3] = drone.linkQuality();
         });
         helper.runAfterDelay(80, () -> {
+            unforce[0].run();
             List<Float> cable = drone.cable();
             float lastX = cable.isEmpty() ? Float.NaN : cable.get(cable.size() - 3) - (float) helper.absoluteVec(Vec3.ZERO).x;
             LOG.info("FPV-FIBRE link quality: laid {} / swing 6 m away {} / swing behind glass {} / swing through it {}; "
@@ -93,7 +94,9 @@ public final class FibreGameTest implements FabricGameTest {
     public void pickedUpFibreDroneKeepsItsSpool(GameTestHelper helper) {
         ServerLevel level = helper.getLevel();
         ServerPlayer operator = helper.makeMockServerPlayerInLevel();
-        FpvDrone drone = laid(helper, operator);
+        Runnable[] unforce = new Runnable[1];
+        // Away from the other fibre test's line, which lies along z = 2.5 in the next test area.
+        FpvDrone drone = laid(helper, operator, 6.5, unforce);
         double[] paid = new double[2];
         helper.runAfterDelay(50, () -> {
             paid[0] = drone.fibrePaidOut();
@@ -105,14 +108,15 @@ public final class FibreGameTest implements FabricGameTest {
         helper.runAfterDelay(55, () -> {
             ItemStack item = operator.getInventory().items.stream().filter(s -> s.is(DroneWarfare.FPV_FIBRE_ITEM)).findFirst().orElse(ItemStack.EMPTY);
             helper.assertFalse(item.isEmpty(), "the pickup must return the fibre drone");
-            helper.setBlock(new BlockPos(6, 1, 6), Blocks.STONE);
+            helper.setBlock(new BlockPos(6, 1, 10), Blocks.STONE);
             operator.setItemInHand(InteractionHand.MAIN_HAND, item.copyWithCount(1));
-            BlockPos floor = helper.absolutePos(new BlockPos(6, 1, 6));
+            BlockPos floor = helper.absolutePos(new BlockPos(6, 1, 10));
             operator.getMainHandItem().useOn(new UseOnContext(operator, InteractionHand.MAIN_HAND,
                     new BlockHitResult(Vec3.atCenterOf(floor), Direction.UP, floor, false)));
         });
         helper.runAfterDelay(60, () -> {
-            FpvDrone next = level.getEntities(DroneWarfare.FPV_FIBRE, d -> d != drone && d.distanceToSqr(helper.absoluteVec(new Vec3(6.5, 2, 6.5))) < 4)
+            unforce[0].run();
+            FpvDrone next = level.getEntities(DroneWarfare.FPV_FIBRE, d -> d != drone && d.distanceToSqr(helper.absoluteVec(new Vec3(6.5, 2, 10.5))) < 4)
                     .stream().findFirst().orElse(null);
             helper.assertTrue(next != null, "the item must deploy a fibre drone");
             CompoundTag tag = next.saveWithoutId(new CompoundTag());

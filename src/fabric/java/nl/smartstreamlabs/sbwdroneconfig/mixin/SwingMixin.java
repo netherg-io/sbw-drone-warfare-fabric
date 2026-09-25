@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Every left-click swing a client reports may cut laid fibre ({@link FpvDrone#swing}). */
+/** Every arm swing a client reports (attack, mining, placing) may cut laid fibre ({@link FpvDrone#swing}). */
 @Mixin(ServerGamePacketListenerImpl.class)
 abstract class SwingMixin {
     @Shadow public ServerPlayer player;
